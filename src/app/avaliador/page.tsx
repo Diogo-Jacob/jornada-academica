@@ -86,7 +86,7 @@ export default async function AvaliadorPage() {
     !profile.is_active ||
     profile.role !== "evaluator"
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: assignmentsData, error: assignmentsError } =

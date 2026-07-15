@@ -26,6 +26,25 @@ export async function registerEvaluator(formData: FormData) {
     formData.get("passwordConfirmation") ?? ""
   );
 
+  const registrationCode = String(
+    formData.get("registrationCode") ?? ""
+  ).trim();
+
+  const expectedCode =
+    process.env.EVALUATOR_REGISTRATION_CODE;
+
+  if (!expectedCode) {
+    redirectWithError(
+      "O código de cadastro de avaliadores não foi configurado. Entre em contato com a organização."
+    );
+  }
+
+  if (registrationCode !== expectedCode) {
+    redirectWithError(
+      "Código de cadastro inválido. Confira o código recebido pela organização."
+    );
+  }
+
   if (fullName.length < 3) {
     redirectWithError("Informe seu nome completo.");
   }

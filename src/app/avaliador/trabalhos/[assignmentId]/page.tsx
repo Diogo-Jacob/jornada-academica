@@ -133,7 +133,7 @@ export default async function AvaliadorTrabalhoPage({
     !profile.is_active ||
     profile.role !== "evaluator"
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: assignmentData, error: assignmentError } =

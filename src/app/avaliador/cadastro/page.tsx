@@ -235,6 +235,35 @@ export default async function AvaliadorCadastroPage({
                     </div>
                   </div>
 
+                  <div className="rounded-3xl border border-[#d9e8ef] bg-[#f7fbfd] p-5">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="registrationCode"
+                        className="text-sm font-medium text-[#102a3d]"
+                      >
+                        Código de cadastro
+                      </label>
+
+                      <div className="relative">
+                        <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f7d90]" />
+
+                        <Input
+                          id="registrationCode"
+                          name="registrationCode"
+                          type="text"
+                          placeholder="Informe o código recebido"
+                          className="h-11 border-[#d9e8ef] bg-white pl-9 focus-visible:ring-[#245b7a]/20"
+                          required
+                        />
+                      </div>
+
+                      <p className="text-xs leading-5 text-[#5f7d90]">
+                        Este código é fornecido pela Comissão Científica aos
+                        avaliadores convidados.
+                      </p>
+                    </div>
+                  </div>
+
                   <Button
                     type="submit"
                     className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
