@@ -223,9 +223,9 @@ export function UpdatePasswordForm() {
 
   if (isPreparingSession) {
     return (
-      <div className="rounded-2xl border border-[#d9e8ef] bg-[#eef7fa] p-4 text-sm text-[#245b7a]">
+      <div className="rounded-2xl border border-white/10 bg-[#07162a]/60 p-4 text-sm text-[#b9d4df]">
         <div className="flex items-center gap-3">
-          <Loader2 className="size-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin text-[#6fb6cf]" />
 
           <p>
             Validando link de recuperação...
@@ -238,11 +238,11 @@ export function UpdatePasswordForm() {
   if (successMessage) {
     return (
       <div className="space-y-5">
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+        <div className="rounded-2xl border border-green-300/30 bg-green-500/10 p-4">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-700" />
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-200" />
 
-            <p className="text-sm leading-6 text-green-800">
+            <p className="text-sm leading-6 text-green-100">
               {successMessage}
             </p>
           </div>
@@ -250,7 +250,7 @@ export function UpdatePasswordForm() {
 
         <Button
           asChild
-          className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
+          className="h-12 w-full rounded-xl bg-[#6fb6cf] text-base font-bold text-[#07162a] shadow-lg shadow-[#6fb6cf]/20 hover:bg-[#8cc9dc]"
         >
           <Link href="/login">
             Ir para o login
@@ -264,17 +264,17 @@ export function UpdatePasswordForm() {
     return (
       <div className="space-y-5">
         {errorMessage && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
+          <div className="rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
             {errorMessage}
           </div>
         )}
 
         <Button
           asChild
-          className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
+          className="h-12 w-full rounded-xl bg-[#6fb6cf] text-base font-bold text-[#07162a] shadow-lg shadow-[#6fb6cf]/20 hover:bg-[#8cc9dc]"
         >
           <Link href="/auth/esqueci-senha">
-            <RefreshCw />
+            <RefreshCw className="size-4" />
             Solicitar novo link
           </Link>
         </Button>
@@ -288,7 +288,7 @@ export function UpdatePasswordForm() {
       className="space-y-5"
     >
       {errorMessage && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
+        <div className="rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
           {errorMessage}
         </div>
       )}
@@ -296,19 +296,19 @@ export function UpdatePasswordForm() {
       <div className="space-y-2">
         <label
           htmlFor="password"
-          className="text-sm font-medium text-[#102a3d]"
+          className="text-sm font-bold uppercase tracking-[0.16em] text-[#8fb7cc]"
         >
           Nova senha
         </label>
 
         <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f7d90]" />
+          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
 
           <Input
             id="password"
             type="password"
             placeholder="Mínimo de 6 caracteres"
-            className="h-11 border-[#d9e8ef] bg-white pl-9 focus-visible:ring-[#245b7a]/20"
+            className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
             minLength={6}
             value={password}
             onChange={(event) =>
@@ -322,19 +322,19 @@ export function UpdatePasswordForm() {
       <div className="space-y-2">
         <label
           htmlFor="passwordConfirmation"
-          className="text-sm font-medium text-[#102a3d]"
+          className="text-sm font-bold uppercase tracking-[0.16em] text-[#8fb7cc]"
         >
           Confirmar nova senha
         </label>
 
         <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f7d90]" />
+          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
 
           <Input
             id="passwordConfirmation"
             type="password"
             placeholder="Repita a nova senha"
-            className="h-11 border-[#d9e8ef] bg-white pl-9 focus-visible:ring-[#245b7a]/20"
+            className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
             minLength={6}
             value={passwordConfirmation}
             onChange={(event) =>
@@ -347,12 +347,12 @@ export function UpdatePasswordForm() {
 
       <Button
         type="submit"
-        className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
+        className="h-12 w-full rounded-xl bg-[#6fb6cf] text-base font-bold text-[#07162a] shadow-lg shadow-[#6fb6cf]/20 hover:bg-[#8cc9dc]"
         disabled={isSubmitting}
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
             Redefinindo...
           </>
         ) : (

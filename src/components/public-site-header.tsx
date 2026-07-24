@@ -20,24 +20,28 @@ const navItems = [
     label: "O evento",
   },
   {
-    href: "#submissoes",
-    label: "Trabalhos",
+    href: "#comissao",
+    label: "Comissão",
   },
   {
-    href: "#programacao",
-    label: "Programação",
+    href: "#cronograma",
+    label: "Cronograma",
   },
   {
-    href: "#edital",
-    label: "Edital",
+    href: "#palestrantes",
+    label: "Palestrantes",
   },
   {
     href: "#local",
     label: "Local",
   },
   {
+    href: "#edital",
+    label: "Edital",
+  },
+  {
     href: "#patrocinadores",
-    label: "Patrocinadores",
+    label: "Apoiadores",
   },
 ];
 

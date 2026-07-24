@@ -1,20 +1,13 @@
 import Link from "next/link";
 import {
   Lock,
+  LogIn,
   Mail,
   Stethoscope,
 } from "lucide-react";
 import { signIn } from "./actions";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -26,39 +19,39 @@ type LoginPageProps = {
 export default async function LoginPage({
   searchParams,
 }: LoginPageProps) {
-  const params = await searchParams;
+  const messages = await searchParams;
 
   return (
-    <Card className="overflow-hidden rounded-[2rem] border-[#d9e8ef] bg-white shadow-sm">
-      <div className="h-2 bg-[#245b7a]" />
-
-      <CardHeader className="space-y-4 border-b border-[#d9e8ef] bg-[#f7fbfd]">
-        <div className="flex size-16 items-center justify-center rounded-2xl bg-[#eef7fa] text-[#245b7a]">
+    <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#102a3d]/85 shadow-2xl shadow-black/20 backdrop-blur">
+      <div className="border-b border-white/10 bg-white/[0.04] p-7">
+        <div className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-[#245b7a] text-[#d9e8ef]">
           <Stethoscope className="size-7" />
         </div>
 
-        <div>
-          <CardTitle className="text-2xl text-[#102a3d]">
-            Acessar plataforma
-          </CardTitle>
+        <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6fb6cf]">
+          Plataforma científica
+        </p>
 
-          <CardDescription className="mt-2 leading-6 text-[#5f7d90]">
-            Entre com seu e-mail e senha para acompanhar submissões, avaliações
-            e resultados da Jornada Acadêmica de Medicina.
-          </CardDescription>
-        </div>
-      </CardHeader>
+        <h1 className="font-display mt-3 text-4xl font-bold leading-tight text-white">
+          Bem-vindo de volta
+        </h1>
 
-      <CardContent className="p-6">
-        {params.erro && (
-          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
-            {params.erro}
+        <p className="mt-3 text-base leading-7 text-[#b9d4df]">
+          Acesse sua conta para acompanhar submissões, avaliações e resultados
+          da Jornada Acadêmica de Medicina.
+        </p>
+      </div>
+
+      <div className="p-7">
+        {messages.erro && (
+          <div className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
+            {messages.erro}
           </div>
         )}
 
-        {params.sucesso && (
-          <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-6 text-green-800">
-            {params.sucesso}
+        {messages.sucesso && (
+          <div className="mb-5 rounded-2xl border border-green-300/30 bg-green-500/10 p-4 text-sm leading-6 text-green-100">
+            {messages.sucesso}
           </div>
         )}
 
@@ -67,23 +60,22 @@ export default async function LoginPage({
           className="space-y-5"
         >
           <div className="space-y-2">
-            <Label
+            <label
               htmlFor="email"
-              className="text-[#102a3d]"
+              className="text-sm font-bold uppercase tracking-[0.16em] text-[#8fb7cc]"
             >
               E-mail
-            </Label>
+            </label>
 
             <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f7d90]" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
 
               <Input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="seuemail@exemplo.com"
-                autoComplete="email"
-                className="h-11 border-[#d9e8ef] bg-white pl-9 focus-visible:ring-[#245b7a]/20"
+                className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
                 required
               />
             </div>
@@ -91,31 +83,30 @@ export default async function LoginPage({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
-              <Label
+              <label
                 htmlFor="password"
-                className="text-[#102a3d]"
+                className="text-sm font-bold uppercase tracking-[0.16em] text-[#8fb7cc]"
               >
                 Senha
-              </Label>
+              </label>
 
               <Link
                 href="/auth/esqueci-senha"
-                className="text-sm font-medium text-[#245b7a] underline-offset-4 hover:underline"
+                className="text-sm font-semibold text-[#6fb6cf] underline-offset-4 hover:underline"
               >
                 Esqueci minha senha
               </Link>
             </div>
 
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#5f7d90]" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
 
               <Input
                 id="password"
                 name="password"
                 type="password"
                 placeholder="Digite sua senha"
-                autoComplete="current-password"
-                className="h-11 border-[#d9e8ef] bg-white pl-9 focus-visible:ring-[#245b7a]/20"
+                className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
                 required
               />
             </div>
@@ -123,22 +114,25 @@ export default async function LoginPage({
 
           <Button
             type="submit"
-            className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
+            className="h-12 w-full rounded-xl bg-[#6fb6cf] text-base font-bold text-[#07162a] shadow-lg shadow-[#6fb6cf]/20 hover:bg-[#8cc9dc]"
           >
+            <LogIn className="size-4" />
             Entrar
           </Button>
+        </form>
 
-          <p className="text-center text-sm text-[#5f7d90]">
+        <div className="mt-7 border-t border-white/10 pt-6 text-center">
+          <p className="text-sm text-[#b9d4df]">
             Ainda não possui uma conta?{" "}
             <Link
               href="/cadastro"
-              className="font-medium text-[#245b7a] underline-offset-4 hover:underline"
+              className="font-bold text-[#6fb6cf] underline-offset-4 hover:underline"
             >
               Realizar cadastro
             </Link>
           </p>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 }
