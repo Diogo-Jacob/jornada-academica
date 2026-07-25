@@ -5,12 +5,11 @@ import Link from "next/link";
 import {
   CheckCircle2,
   Loader2,
-  Lock,
   RefreshCw,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 
 export function UpdatePasswordForm() {
   const [password, setPassword] = useState("");
@@ -301,22 +300,17 @@ export function UpdatePasswordForm() {
           Nova senha
         </label>
 
-        <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-          <Input
-            id="password"
-            type="password"
-            placeholder="Mínimo de 6 caracteres"
-            className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-            minLength={6}
-            value={password}
-            onChange={(event) =>
-              setPassword(event.target.value)
-            }
-            required
-          />
-        </div>
+        <PasswordInput
+          id="password"
+          placeholder="Mínimo de 6 caracteres"
+          className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+          minLength={6}
+          value={password}
+          onChange={(event) =>
+            setPassword(event.target.value)
+          }
+          required
+        />
       </div>
 
       <div className="space-y-2">
@@ -327,22 +321,17 @@ export function UpdatePasswordForm() {
           Confirmar nova senha
         </label>
 
-        <div className="relative">
-          <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-          <Input
-            id="passwordConfirmation"
-            type="password"
-            placeholder="Repita a nova senha"
-            className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-            minLength={6}
-            value={passwordConfirmation}
-            onChange={(event) =>
-              setPasswordConfirmation(event.target.value)
-            }
-            required
-          />
-        </div>
+        <PasswordInput
+          id="passwordConfirmation"
+          placeholder="Repita a nova senha"
+          className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+          minLength={6}
+          value={passwordConfirmation}
+          onChange={(event) =>
+            setPasswordConfirmation(event.target.value)
+          }
+          required
+        />
       </div>
 
       <Button

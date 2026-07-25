@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ClipboardCheck,
-  Lock,
   Mail,
   ShieldCheck,
   Stethoscope,
@@ -11,6 +10,7 @@ import {
 import { registerEvaluator } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 
 type AvaliadorCadastroPageProps = {
   searchParams: Promise<{
@@ -163,20 +163,15 @@ export default async function AvaliadorCadastroPage({
                       Senha
                     </label>
 
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-                      <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        placeholder="Mínimo de 6 caracteres"
-                        autoComplete="new-password"
-                        className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-                        minLength={6}
-                        required
-                      />
-                    </div>
+                    <PasswordInput
+                      id="password"
+                      name="password"
+                      placeholder="Mínimo de 6 caracteres"
+                      autoComplete="new-password"
+                      className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+                      minLength={6}
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -187,20 +182,15 @@ export default async function AvaliadorCadastroPage({
                       Confirmar senha
                     </label>
 
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-                      <Input
-                        id="passwordConfirmation"
-                        name="passwordConfirmation"
-                        type="password"
-                        placeholder="Repita sua senha"
-                        autoComplete="new-password"
-                        className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-                        minLength={6}
-                        required
-                      />
-                    </div>
+                    <PasswordInput
+                      id="passwordConfirmation"
+                      name="passwordConfirmation"
+                      placeholder="Repita sua senha"
+                      autoComplete="new-password"
+                      className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+                      minLength={6}
+                      required
+                    />
                   </div>
                 </div>
 

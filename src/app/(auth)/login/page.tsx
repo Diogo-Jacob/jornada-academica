@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Lock,
   LogIn,
   Mail,
   Stethoscope,
@@ -8,6 +7,7 @@ import {
 import { signIn } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -75,6 +75,7 @@ export default async function LoginPage({
                 name="email"
                 type="email"
                 placeholder="seuemail@exemplo.com"
+                autoComplete="email"
                 className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
                 required
               />
@@ -98,18 +99,13 @@ export default async function LoginPage({
               </Link>
             </div>
 
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Digite sua senha"
-                className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-                required
-              />
-            </div>
+            <PasswordInput
+              id="password"
+              name="password"
+              placeholder="Digite sua senha"
+              className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+              required
+            />
           </div>
 
           <Button

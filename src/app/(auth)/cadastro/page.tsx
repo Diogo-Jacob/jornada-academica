@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   CheckCircle2,
-  Lock,
   Mail,
   Stethoscope,
   UserRound,
@@ -9,6 +8,7 @@ import {
 import { signUp } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 
 type CadastroPageProps = {
   searchParams: Promise<{
@@ -114,19 +114,14 @@ export default async function CadastroPage({
                 Senha
               </label>
 
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Crie uma senha"
-                  autoComplete="new-password"
-                  className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-                  required
-                />
-              </div>
+              <PasswordInput
+                id="password"
+                name="password"
+                placeholder="Crie uma senha"
+                autoComplete="new-password"
+                className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -137,19 +132,14 @@ export default async function CadastroPage({
                 Confirmar senha
               </label>
 
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6fb6cf]" />
-
-                <Input
-                  id="passwordConfirmation"
-                  name="passwordConfirmation"
-                  type="password"
-                  placeholder="Repita a senha"
-                  autoComplete="new-password"
-                  className="h-12 border-white/10 bg-[#07162a]/80 pl-10 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
-                  required
-                />
-              </div>
+              <PasswordInput
+                id="passwordConfirmation"
+                name="passwordConfirmation"
+                placeholder="Repita a senha"
+                autoComplete="new-password"
+                className="h-12 border-white/10 bg-[#07162a]/80 text-base text-white placeholder:text-[#8fb7cc]/70 focus-visible:ring-[#6fb6cf]/30"
+                required
+              />
             </div>
           </div>
 

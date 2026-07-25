@@ -229,3 +229,19 @@ select {
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 72px 72px;
 }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #07162a inset !important;
+  box-shadow: 0 0 0 1000px #07162a inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+input:-webkit-autofill::first-line {
+  color: #ffffff !important;
+  font-size: 1rem;
+}
