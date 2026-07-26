@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function redirectWithError(message: string): never {
@@ -39,6 +40,13 @@ function getFriendlyAuthError(message: string) {
   return `Não foi possível criar a conta. Detalhe: ${message}`;
 }
 
+function getSiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "https://www.ixjornadaacademica.com.br"
+  );
+}
+
 export async function signUp(formData: FormData) {
   const fullName = String(formData.get("fullName") ?? "").trim();
 
@@ -67,7 +75,7 @@ export async function signUp(formData: FormData) {
   if (password !== passwordConfirmation) {
     redirectWithError("As senhas informadas não são iguais.");
   }
-  
+
   const adminSupabase = createAdminClient();
 
   const { data: existingUsers, error: listUsersError } =
@@ -95,27 +103,33 @@ export async function signUp(formData: FormData) {
     );
   }
 
-  const { data: createdUser, error: createUserError } =
-    await adminSupabase.auth.admin.createUser({
+  const supabase = await createClient();
+
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?next=/login`;
+
+  const { data: signUpData, error: signUpError } =
+    await supabase.auth.signUp({
       email,
       password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        role: "student",
+      options: {
+        emailRedirectTo,
+        data: {
+          full_name: fullName,
+          role: "student",
+        },
       },
     });
 
-  if (createUserError || !createdUser.user) {
+  if (signUpError || !signUpData.user) {
     console.error("Erro ao criar conta de aluno:", {
-      message: createUserError?.message,
-      status: createUserError?.status,
-      name: createUserError?.name,
+      message: signUpError?.message,
+      status: signUpError?.status,
+      name: signUpError?.name,
     });
 
     redirectWithError(
       getFriendlyAuthError(
-        createUserError?.message ??
+        signUpError?.message ??
           "Erro desconhecido ao criar usuário."
       )
     );
@@ -125,7 +139,7 @@ export async function signUp(formData: FormData) {
     .from("profiles")
     .upsert(
       {
-        id: createdUser.user.id,
+        id: signUpData.user.id,
         full_name: fullName,
         email,
         role: "student",
@@ -144,9 +158,7 @@ export async function signUp(formData: FormData) {
       code: profileError.code,
     });
 
-    await adminSupabase.auth.admin.deleteUser(
-      createdUser.user.id
-    );
+    await adminSupabase.auth.admin.deleteUser(signUpData.user.id);
 
     redirectWithError(
       "A conta foi criada, mas não foi possível registrar o perfil do aluno. Tente novamente."
@@ -154,6 +166,6 @@ export async function signUp(formData: FormData) {
   }
 
   redirectWithSuccess(
-    "Cadastro realizado com sucesso. Você já pode entrar na plataforma com seu e-mail e senha."
+    "Cadastro realizado. Enviamos um link de confirmação para seu e-mail. Confirme sua conta antes de acessar a plataforma. Verifique também a caixa de spam ou lixo eletrônico."
   );
 }

@@ -52,7 +52,19 @@ export default async function CadastroPage({
 
         {params.sucesso && (
           <div className="mb-5 rounded-2xl border border-green-300/30 bg-green-500/10 p-4 text-sm leading-6 text-green-100">
-            {params.sucesso}
+            <p>{params.sucesso}</p>
+
+            <p className="mt-3 text-green-100/80">
+              Após confirmar o e-mail, volte para a tela de login e acesse sua conta
+              com o e-mail e senha cadastrados.
+            </p>
+
+            <Link
+              href="/login"
+              className="mt-4 inline-flex font-bold text-[#6fb6cf] underline-offset-4 hover:underline"
+            >
+              Ir para o login
+            </Link>
           </div>
         )}
 
