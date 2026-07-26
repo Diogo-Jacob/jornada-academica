@@ -146,21 +146,7 @@ export default async function CadastroPage({
           <p className="rounded-2xl border border-white/10 bg-[#07162a]/60 p-4 text-sm leading-6 text-[#b9d4df]">
             Use uma senha segura. Recomendamos pelo menos 8 caracteres.
           </p>
-
-          <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-[#b9d4df]">
-            <input
-              type="checkbox"
-              name="acceptTerms"
-              className="mt-1 size-4 accent-[#6fb6cf]"
-              required
-            />
-
-            <span className="leading-6">
-              Declaro que li e aceito os termos de uso, a política de
-              privacidade e o regulamento da Jornada.
-            </span>
-          </label>
-
+          
           <Button
             type="submit"
             className="h-12 w-full rounded-xl bg-[#6fb6cf] text-base font-bold text-[#07162a] shadow-lg shadow-[#6fb6cf]/20 hover:bg-[#8cc9dc]"

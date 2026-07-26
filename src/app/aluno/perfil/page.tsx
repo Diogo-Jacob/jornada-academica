@@ -1,15 +1,31 @@
+import Link from "next/link";
 import {
+  CheckCircle2,
+  KeyRound,
   LogOut,
   Mail,
+  Save,
   ShieldCheck,
   Stethoscope,
   UserRound,
 } from "lucide-react";
 import { signOut } from "../actions";
+import { updateProfileName } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
-export default async function Page() {
+type ProfilePageProps = {
+  searchParams: Promise<{
+    erro?: string;
+    sucesso?: string;
+  }>;
+};
+
+export default async function Page({
+  searchParams,
+}: ProfilePageProps) {
+  const params = await searchParams;
   const { profile } = await getCurrentUser();
 
   return (
@@ -29,11 +45,26 @@ export default async function Page() {
           </h1>
 
           <p className="mt-4 max-w-2xl leading-7 text-white/75">
-            Consulte seus dados de acesso vinculados à plataforma da Jornada
-            Acadêmica de Medicina.
+            Consulte e atualize seus dados básicos vinculados à plataforma da
+            Jornada Acadêmica de Medicina.
           </p>
         </div>
       </section>
+
+      {params.erro && (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-700">
+          {params.erro}
+        </div>
+      )}
+
+      {params.sucesso && (
+        <div className="rounded-3xl border border-green-200 bg-green-50 p-5 text-sm leading-6 text-green-800">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
+            <p>{params.sucesso}</p>
+          </div>
+        </div>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="rounded-[2rem] border border-[#d9e8ef] bg-white p-6 text-center shadow-sm">
@@ -62,11 +93,40 @@ export default async function Page() {
         </div>
 
         <div className="space-y-4">
-          <ProfileInfoCard
-            icon={<UserRound className="size-5" />}
-            label="Nome completo"
-            value={profile.full_name}
-          />
+          <div className="rounded-3xl border border-[#d9e8ef] bg-white p-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef7fa] text-[#245b7a]">
+                <UserRound className="size-5" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[#5f7d90]">
+                  Nome completo
+                </p>
+
+                <form
+                  action={updateProfileName}
+                  className="mt-3 flex flex-col gap-3 sm:flex-row"
+                >
+                  <Input
+                    name="fullName"
+                    defaultValue={profile.full_name ?? ""}
+                    placeholder="Digite seu nome completo"
+                    className="h-11 border-[#d9e8ef] bg-white text-[#102a3d] focus-visible:ring-[#245b7a]/20"
+                    required
+                  />
+
+                  <Button
+                    type="submit"
+                    className="h-11 shrink-0 bg-[#245b7a] hover:bg-[#173f59]"
+                  >
+                    <Save className="size-4" />
+                    Salvar
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
 
           <ProfileInfoCard
             icon={<Mail className="size-5" />}
@@ -83,22 +143,35 @@ export default async function Page() {
       </section>
 
       <section className="rounded-3xl border border-[#d9e8ef] bg-[#eef7fa] p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#245b7a]">
-            <ShieldCheck className="size-5" />
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#245b7a]">
+              <ShieldCheck className="size-5" />
+            </div>
+
+            <div>
+              <h2 className="font-semibold text-[#102a3d]">
+                Segurança da conta
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
+                Para alterar sua senha, solicite um link de recuperação pelo
+                e-mail cadastrado. A alteração de e-mail deve ser feita com
+                apoio da organização.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h2 className="font-semibold text-[#102a3d]">
-              Segurança da conta
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-              Caso precise alterar seus dados cadastrais ou tenha dificuldades
-              de acesso, entre em contato com a organização da Jornada
-              Acadêmica de Medicina.
-            </p>
-          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="shrink-0 border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#f7fbfd]"
+          >
+            <Link href="/auth/esqueci-senha">
+              <KeyRound className="size-4" />
+              Alterar senha
+            </Link>
+          </Button>
         </div>
       </section>
 

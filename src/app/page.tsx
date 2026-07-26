@@ -236,22 +236,6 @@ export default function HomePage() {
                   Comissão Científica
                 </span>
               </h2>
-
-              <div className="mt-10 flex items-center gap-4">
-                <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-[#6fb6cf]/40 bg-[#245b7a] text-[#d9e8ef]">
-                  <Stethoscope className="size-7" />
-                </div>
-
-                <div>
-                  <p className="text-lg font-bold text-white">
-                    Comissão Científica
-                  </p>
-
-                  <p className="text-sm font-medium text-[#6fb6cf]">
-                    Jornada Acadêmica de Medicina
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="relative">
