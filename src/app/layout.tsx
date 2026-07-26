@@ -14,6 +14,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.ixjornadaacademica.com.br"),
   title: "Jornada Acadêmica de Medicina",
   description:
     "Plataforma oficial da Jornada Acadêmica de Medicina para cadastro, submissão, avaliação e divulgação de trabalhos científicos.",
@@ -30,10 +31,10 @@ export const metadata: Metadata = {
     siteName: "Jornada Acadêmica de Medicina",
     images: [
       {
-        url: "/logo-ix-jornada.jpg",
+        url: "/campgo-logo.png",
         width: 512,
         height: 512,
-        alt: "Logo da Jornada Acadêmica de Medicina",
+        alt: "Logo CAMPGO",
       },
     ],
     locale: "pt_BR",
