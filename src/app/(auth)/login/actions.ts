@@ -42,7 +42,7 @@ export async function signIn(formData: FormData) {
       error.message.toLowerCase().includes("email not confirmed")
     ) {
       redirectWithError(
-        "Este e-mail ainda não foi confirmado. Confirme o usuário no Supabase Auth."
+        "Este e-mail ainda não foi confirmado. Verifique sua caixa de entrada, spam ou lixo eletrônico e clique no link de confirmação enviado pela Jornada Acadêmica de Medicina."
       );
     }
 
