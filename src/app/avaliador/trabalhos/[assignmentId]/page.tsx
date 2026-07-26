@@ -496,7 +496,7 @@ export default async function AvaliadorTrabalhoPage({
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#102a3d]">
-                      Versão anonimizada
+                      Trabalho
                     </p>
 
                     <p className="mt-1 break-all text-sm text-[#5f7d90]">
@@ -530,7 +530,7 @@ export default async function AvaliadorTrabalhoPage({
                     )}
                   >
                     <Download />
-                    Baixar versão anonimizada
+                    Baixar Trabalho
                   </Link>
                 </Button>
               </div>

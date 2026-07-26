@@ -258,7 +258,7 @@ export default async function AvaliadorPage() {
 
               <p className="mt-4 max-w-2xl leading-7 text-white/75">
                 Consulte os trabalhos atribuídos, acesse os arquivos
-                anonimizados e registre sua avaliação científica conforme os
+                e registre sua avaliação científica conforme os
                 critérios da Comissão Científica.
               </p>
             </div>
