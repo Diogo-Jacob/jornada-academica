@@ -1,5 +1,9 @@
+import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Submission = {
   id: string;
@@ -56,6 +60,21 @@ type OfficialScoreResult = {
   consideredScores: AssignmentScore[];
   allScores: AssignmentScore[];
   usedClosestPair: boolean;
+};
+
+type RankingRow = {
+  rank: number;
+  title: string;
+  protocol: string;
+  category: string;
+  responsibleAuthorName: string;
+  responsibleAuthorEmail: string;
+  completedEvaluations: number;
+  allScoresText: string;
+  consideredScoresText: string;
+  officialAverage: number | null;
+  usedClosestPair: string;
+  result: string;
 };
 
 function getCategoryName(submission: Submission) {
@@ -214,20 +233,12 @@ function getOfficialScoreResult({
   };
 }
 
-function formatNumberForCsv(value: number | null) {
+function formatNumber(value: number | null) {
   if (value === null || Number.isNaN(value)) {
     return "";
   }
 
-  return value.toFixed(2).replace(".", ",");
-}
-
-function escapeCsvValue(value: string | number | null | undefined) {
-  const stringValue = String(value ?? "");
-
-  const escapedValue = stringValue.replace(/"/g, '""');
-
-  return `"${escapedValue}"`;
+  return Number(value.toFixed(2));
 }
 
 function getAutomaticResultLabel(rank: number | null) {
@@ -261,19 +272,300 @@ function getScoresText({
 
       return `${
         evaluator?.full_name ?? "Avaliador não localizado"
-      }: ${formatNumberForCsv(assignmentScore.score)}`;
+      }: ${assignmentScore.score.toFixed(2).replace(".", ",")}`;
     })
     .join(" | ");
 }
 
-export async function GET() {
+function styleWorksheet(worksheet: ExcelJS.Worksheet, rowsLength: number) {
+  worksheet.views = [
+    {
+      state: "frozen",
+      ySplit: 5,
+    },
+  ];
+
+  worksheet.properties.defaultRowHeight = 22;
+
+  worksheet.columns = [
+    { key: "rank", width: 16 },
+    { key: "title", width: 44 },
+    { key: "protocol", width: 22 },
+    { key: "category", width: 28 },
+    { key: "responsibleAuthorName", width: 28 },
+    { key: "responsibleAuthorEmail", width: 32 },
+    { key: "completedEvaluations", width: 22 },
+    { key: "allScoresText", width: 44 },
+    { key: "consideredScoresText", width: 44 },
+    { key: "officialAverage", width: 18 },
+    { key: "usedClosestPair", width: 28 },
+    { key: "result", width: 24 },
+  ];
+
+  worksheet.mergeCells("A1:L1");
+  worksheet.mergeCells("A2:L2");
+  worksheet.mergeCells("A3:L3");
+
+  const titleCell = worksheet.getCell("A1");
+  titleCell.value = "Jornada Acadêmica de Medicina";
+  titleCell.font = {
+    bold: true,
+    size: 18,
+    color: { argb: "FFFFFFFF" },
+  };
+  titleCell.alignment = {
+    horizontal: "center",
+    vertical: "middle",
+  };
+  titleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF102A3D" },
+  };
+
+  const subtitleCell = worksheet.getCell("A2");
+  subtitleCell.value = "Ranking geral de resultados";
+  subtitleCell.font = {
+    bold: true,
+    size: 13,
+    color: { argb: "FFFFFFFF" },
+  };
+  subtitleCell.alignment = {
+    horizontal: "center",
+    vertical: "middle",
+  };
+  subtitleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF245B7A" },
+  };
+
+  const generatedAtCell = worksheet.getCell("A3");
+  generatedAtCell.value = `Arquivo gerado em ${new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+    }
+  ).format(new Date())}`;
+  generatedAtCell.font = {
+    size: 11,
+    color: { argb: "FF4A6678" },
+  };
+  generatedAtCell.alignment = {
+    horizontal: "center",
+    vertical: "middle",
+  };
+  generatedAtCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFEEF7FA" },
+  };
+
+  worksheet.getRow(1).height = 30;
+  worksheet.getRow(2).height = 24;
+  worksheet.getRow(3).height = 22;
+  worksheet.getRow(4).height = 8;
+
+  const headerRow = worksheet.getRow(5);
+
+  headerRow.values = [
+    "Classificação",
+    "Título do trabalho",
+    "Protocolo",
+    "Categoria",
+    "Autor responsável",
+    "E-mail do autor",
+    "Avaliações concluídas",
+    "Todas as notas recebidas",
+    "Notas consideradas na média",
+    "Média final oficial",
+    "Regra das 2 notas mais próximas",
+    "Resultado final",
+  ];
+
+  headerRow.height = 28;
+  headerRow.font = {
+    bold: true,
+    color: { argb: "FFFFFFFF" },
+  };
+  headerRow.alignment = {
+    horizontal: "center",
+    vertical: "middle",
+    wrapText: true,
+  };
+
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF102A3D" },
+    };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFD9E8EF" } },
+      left: { style: "thin", color: { argb: "FFD9E8EF" } },
+      bottom: { style: "thin", color: { argb: "FFD9E8EF" } },
+      right: { style: "thin", color: { argb: "FFD9E8EF" } },
+    };
+  });
+
+  const firstDataRow = 6;
+  const lastDataRow = firstDataRow + rowsLength - 1;
+
+  if (rowsLength > 0) {
+    worksheet.autoFilter = {
+      from: {
+        row: 5,
+        column: 1,
+      },
+      to: {
+        row: lastDataRow,
+        column: 12,
+      },
+    };
+
+    for (let rowNumber = firstDataRow; rowNumber <= lastDataRow; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      const isEvenRow = rowNumber % 2 === 0;
+
+      row.height = 42;
+
+      row.eachCell((cell, columnNumber) => {
+        cell.alignment = {
+          vertical: "middle",
+          horizontal:
+            [1, 7, 10, 11, 12].includes(columnNumber) ? "center" : "left",
+          wrapText: true,
+        };
+
+        cell.font = {
+          color: { argb: "FF102A3D" },
+          size: 11,
+        };
+
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb: isEvenRow ? "FFFFFFFF" : "FFF7FBFD",
+          },
+        };
+
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFD9E8EF" } },
+          left: { style: "thin", color: { argb: "FFD9E8EF" } },
+          bottom: { style: "thin", color: { argb: "FFD9E8EF" } },
+          right: { style: "thin", color: { argb: "FFD9E8EF" } },
+        };
+      });
+
+      const rankCell = row.getCell(1);
+      rankCell.font = {
+        bold: true,
+        color: { argb: "FF102A3D" },
+        size: 12,
+      };
+
+      const averageCell = row.getCell(10);
+      averageCell.numFmt = "0.00";
+      averageCell.font = {
+        bold: true,
+        color: { argb: "FF102A3D" },
+        size: 12,
+      };
+
+      const resultCell = row.getCell(12);
+      const resultValue = String(resultCell.value ?? "");
+
+      if (resultValue === "Apresentação oral") {
+        resultCell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE7F8EE" },
+        };
+        resultCell.font = {
+          bold: true,
+          color: { argb: "FF166534" },
+          size: 11,
+        };
+      }
+
+      if (resultValue === "Banner") {
+        resultCell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFEEF7FA" },
+        };
+        resultCell.font = {
+          bold: true,
+          color: { argb: "FF245B7A" },
+          size: 11,
+        };
+      }
+    }
+  }
+
+  worksheet.addRow([]);
+
+  const ruleRowNumber = rowsLength > 0 ? lastDataRow + 2 : 7;
+  worksheet.mergeCells(`A${ruleRowNumber}:L${ruleRowNumber}`);
+
+  const ruleCell = worksheet.getCell(`A${ruleRowNumber}`);
+  ruleCell.value =
+    "Regra: os 5 trabalhos com maiores médias finais oficiais são classificados para apresentação oral. Os demais trabalhos avaliados são classificados para banner. Quando há terceiro avaliador, a média final considera as duas notas mais próximas.";
+  ruleCell.font = {
+    italic: true,
+    color: { argb: "FF4A6678" },
+    size: 10,
+  };
+  ruleCell.alignment = {
+    wrapText: true,
+    vertical: "middle",
+  };
+  ruleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFEEF7FA" },
+  };
+  ruleCell.border = {
+    top: { style: "thin", color: { argb: "FFD9E8EF" } },
+    left: { style: "thin", color: { argb: "FFD9E8EF" } },
+    bottom: { style: "thin", color: { argb: "FFD9E8EF" } },
+    right: { style: "thin", color: { argb: "FFD9E8EF" } },
+  };
+  worksheet.getRow(ruleRowNumber).height = 45;
+}
+
+function addRowsToWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  rows: RankingRow[]
+) {
+  rows.forEach((row) => {
+    worksheet.addRow({
+      rank: row.rank,
+      title: row.title,
+      protocol: row.protocol,
+      category: row.category,
+      responsibleAuthorName: row.responsibleAuthorName,
+      responsibleAuthorEmail: row.responsibleAuthorEmail,
+      completedEvaluations: row.completedEvaluations,
+      allScoresText: row.allScoresText,
+      consideredScoresText: row.consideredScoresText,
+      officialAverage: formatNumber(row.officialAverage),
+      usedClosestPair: row.usedClosestPair,
+      result: row.result,
+    });
+  });
+}
+
+export async function GET(request: Request) {
   const { profile, supabase } = await getCurrentUser();
 
   if (
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    return NextResponse.redirect(new URL("/login", "http://localhost:3000"));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const { data: submissionsData, error: submissionsError } =
@@ -306,7 +598,7 @@ export async function GET() {
         "result_confirmed",
         "selected_oral",
         "selected_banner",
-        "not_selected"
+        "not_selected",
       ])
       .order("updated_at", {
         ascending: false,
@@ -374,9 +666,7 @@ export async function GET() {
   }
 
   const evaluatorIds = Array.from(
-    new Set(
-      assignments.map((assignment) => assignment.evaluator_id)
-    )
+    new Set(assignments.map((assignment) => assignment.evaluator_id))
   );
 
   let evaluators: Profile[] = [];
@@ -451,9 +741,7 @@ export async function GET() {
   const rows = submissions
     .map((submission) => {
       const submissionAssignments = assignments
-        .filter(
-          (assignment) => assignment.submission_id === submission.id
-        )
+        .filter((assignment) => assignment.submission_id === submission.id)
         .sort((firstAssignment, secondAssignment) =>
           firstAssignment.assigned_at.localeCompare(
             secondAssignment.assigned_at
@@ -495,12 +783,9 @@ export async function GET() {
         title: row.submission.title,
         protocol: row.submission.protocol ?? "",
         category: getCategoryName(row.submission),
-        responsibleAuthorName:
-          row.responsibleAuthor?.full_name ?? "",
-        responsibleAuthorEmail:
-          row.responsibleAuthor?.email ?? "",
-        completedEvaluations:
-          row.officialScore.completedEvaluations,
+        responsibleAuthorName: row.responsibleAuthor?.full_name ?? "",
+        responsibleAuthorEmail: row.responsibleAuthor?.email ?? "",
+        completedEvaluations: row.officialScore.completedEvaluations,
         allScoresText: getScoresText({
           scores: row.officialScore.allScores,
           evaluatorMap,
@@ -510,62 +795,41 @@ export async function GET() {
           evaluatorMap,
         }),
         officialAverage: row.officialScore.average,
-        usedClosestPair: row.officialScore.usedClosestPair
-          ? "Sim"
-          : "Não",
+        usedClosestPair: row.officialScore.usedClosestPair ? "Sim" : "Não",
         result: getAutomaticResultLabel(rank),
       };
     });
 
-  const header = [
-    "Classificação",
-    "Título",
-    "Protocolo",
-    "Categoria",
-    "Autor responsável",
-    "E-mail do autor",
-    "Avaliações concluídas",
-    "Todas as notas recebidas",
-    "Notas consideradas na média",
-    "Média final oficial",
-    "Usou regra das duas notas mais próximas",
-    "Resultado automático",
-  ];
+  const workbook = new ExcelJS.Workbook();
 
-  const csvRows = [
-    header.map(escapeCsvValue).join(";"),
-    ...rows.map((row) =>
-      [
-        row.rank,
-        row.title,
-        row.protocol,
-        row.category,
-        row.responsibleAuthorName,
-        row.responsibleAuthorEmail,
-        row.completedEvaluations,
-        row.allScoresText,
-        row.consideredScoresText,
-        formatNumberForCsv(row.officialAverage),
-        row.usedClosestPair,
-        row.result,
-      ]
-        .map(escapeCsvValue)
-        .join(";")
-    ),
-  ];
+  workbook.creator = "Jornada Acadêmica de Medicina";
+  workbook.created = new Date();
+  workbook.modified = new Date();
 
-  const csvContent = `\uFEFF${csvRows.join("\n")}`;
+  const worksheet = workbook.addWorksheet("Ranking geral", {
+    properties: {
+      tabColor: {
+        argb: "FF102A3D",
+      },
+    },
+  });
+
+  addRowsToWorksheet(worksheet, rows);
+  styleWorksheet(worksheet, rows.length);
 
   const now = new Date();
 
   const filename = `ranking-geral-jornada-${now
     .toISOString()
-    .slice(0, 10)}.csv`;
+    .slice(0, 10)}.xlsx`;
 
-  return new NextResponse(csvContent, {
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  return new NextResponse(buffer as BodyInit, {
     status: 200,
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "no-store",
     },

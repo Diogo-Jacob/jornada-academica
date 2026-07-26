@@ -761,7 +761,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
               >
                 <Link href="/admin/resultados/exportar">
                   <Download />
-                  Exportar ranking CSV
+                  Exportar ranking Excel
                 </Link>
               </Button>
 
