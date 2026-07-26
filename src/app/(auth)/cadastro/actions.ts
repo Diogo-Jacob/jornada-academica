@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function redirectWithError(message: string): never {
@@ -45,6 +45,31 @@ function getSiteUrl() {
     process.env.NEXT_PUBLIC_SITE_URL ??
     "https://www.ixjornadaacademica.com.br"
   );
+}
+
+function createPublicAuthClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL não foi configurada.");
+  }
+
+  if (!supabaseKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY não foi configurada."
+    );
+  }
+
+  return createSupabaseClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 export async function signUp(formData: FormData) {
@@ -103,12 +128,12 @@ export async function signUp(formData: FormData) {
     );
   }
 
-  const supabase = await createClient();
+  const publicSupabase = createPublicAuthClient();
 
   const emailRedirectTo = `${getSiteUrl()}/auth/confirm?next=/login`;
 
   const { data: signUpData, error: signUpError } =
-    await supabase.auth.signUp({
+    await publicSupabase.auth.signUp({
       email,
       password,
       options: {
