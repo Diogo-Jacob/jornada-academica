@@ -67,6 +67,88 @@ function getResultLabel(status: string) {
   return labels[status] ?? "Resultado disponível";
 }
 
+function getSettingsDate(
+  settings: Record<string, unknown> | null,
+  possibleKeys: string[]
+) {
+  if (!settings) {
+    return null;
+  }
+
+  for (const key of possibleKeys) {
+    const value = settings[key];
+
+    if (typeof value === "string" && value.trim()) {
+      const date = new Date(value);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getSubmissionEndDate(settings: Record<string, unknown> | null) {
+  return getSettingsDate(settings, [
+    "submission_end",
+    "submission_end_at",
+    "submissions_end",
+    "submissions_end_at",
+    "submission_period_end",
+    "submission_period_end_at",
+    "submission_deadline",
+    "end_date",
+  ]);
+}
+
+async function ensureResultsNoticeCanBeSent(
+  supabase: Awaited<ReturnType<typeof ensureAdmin>>["supabase"]
+) {
+  const { data: eventSettingsData, error: eventSettingsError } =
+    await supabase
+      .from("event_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+
+  if (eventSettingsError) {
+    console.error("Erro ao validar período de submissões:", {
+      message: eventSettingsError.message,
+      details: eventSettingsError.details,
+      hint: eventSettingsError.hint,
+      code: eventSettingsError.code,
+    });
+
+    redirectWithMessage(
+      "erro",
+      "Não foi possível validar o período de submissões."
+    );
+  }
+
+  const eventSettings =
+    (eventSettingsData ?? null) as Record<string, unknown> | null;
+
+  const submissionEndDate = getSubmissionEndDate(eventSettings);
+
+  if (!submissionEndDate) {
+    redirectWithMessage(
+      "erro",
+      "Configure a data de encerramento das submissões antes de enviar o aviso de resultados."
+    );
+  }
+
+  const hasSubmissionPeriodEnded = new Date() > submissionEndDate;
+
+  if (!hasSubmissionPeriodEnded) {
+    redirectWithMessage(
+      "erro",
+      "O aviso de resultados só pode ser enviado após o encerramento do período de submissões."
+    );
+  }
+}
+
 export async function setFinalResult(formData: FormData) {
   const submissionId = String(
     formData.get("submissionId") ?? ""
@@ -170,6 +252,8 @@ export async function setFinalResult(formData: FormData) {
 
 export async function sendResultsAvailableEmails() {
   const { supabase } = await ensureAdmin();
+  
+  await ensureResultsNoticeCanBeSent(supabase);
 
   const { data: submissions, error: submissionsError } =
     await supabase
