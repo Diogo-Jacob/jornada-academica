@@ -52,8 +52,6 @@ export async function signUp(formData: FormData) {
     formData.get("passwordConfirmation") ?? ""
   );
 
-  const acceptTerms = formData.get("acceptTerms");
-
   if (fullName.length < 3) {
     redirectWithError("Informe seu nome completo.");
   }
@@ -69,13 +67,7 @@ export async function signUp(formData: FormData) {
   if (password !== passwordConfirmation) {
     redirectWithError("As senhas informadas não são iguais.");
   }
-
-  if (!acceptTerms) {
-    redirectWithError(
-      "É necessário aceitar os termos e o regulamento."
-    );
-  }
-
+  
   const adminSupabase = createAdminClient();
 
   const { data: existingUsers, error: listUsersError } =
