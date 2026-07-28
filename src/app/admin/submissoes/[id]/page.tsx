@@ -202,15 +202,7 @@ function formatFileSize(size: number) {
   return `${(size / 1024).toFixed(1)} KB`;
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle: "short",
-      timeStyle: "short",
-    }
-  ).format(new Date(date));
-}
+import { formatDateTimeBR } from "@/lib/formatters/date";
 
 function formatScore(score: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -1134,7 +1126,7 @@ export default async function AdminSubmissionPage({
             {submission.document_reviewed_at && (
               <p className="mt-4 text-xs text-[#5f7d90]">
                 Registrada em{" "}
-                {formatDate(
+                {formatDateTimeBR(
                   submission.document_reviewed_at
                 )}
               </p>
@@ -1219,7 +1211,7 @@ function EvaluationAssignmentCard({
             {assignment.completed_at && (
               <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
                 Concluída em{" "}
-                {formatDate(assignment.completed_at)}
+                {formatDateTimeBR(assignment.completed_at)}
               </span>
             )}
           </div>

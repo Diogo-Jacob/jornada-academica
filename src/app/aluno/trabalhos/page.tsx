@@ -5,7 +5,6 @@ import {
   FileText,
   PlusCircle,
   Stethoscope,
-  Trash2,
 } from "lucide-react";
 import { deleteDraft } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { DeleteDraftButton } from "./delete-draft-button";
+import { formatDateTimeBR } from "@/lib/formatters/date";
 
 type TrabalhosPageProps = {
   searchParams: Promise<{
@@ -160,13 +161,6 @@ function getStudentStatusClass(
     classes[status] ??
     "border-[#b9d4df] bg-[#eef7fa] text-[#245b7a]"
   );
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date));
 }
 
 export default async function TrabalhosPage({
@@ -379,7 +373,7 @@ export default async function TrabalhosPage({
                             )}
 
                             <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
-                              Atualizado em {formatDate(submission.updated_at)}
+                              Atualizado em {formatDateTimeBR(submission.updated_at)}
                             </span>
                           </div>
 
@@ -423,14 +417,7 @@ export default async function TrabalhosPage({
                                 value={submission.id}
                               />
 
-                              <Button
-                                type="submit"
-                                size="sm"
-                                variant="destructive"
-                              >
-                                <Trash2 />
-                                Excluir
-                              </Button>
+                              <DeleteDraftButton />
                             </form>
                           )}
                         </div>

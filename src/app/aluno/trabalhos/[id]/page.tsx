@@ -13,7 +13,6 @@ import {
   Send,
   ShieldCheck,
   Stethoscope,
-  Upload,
   UserRound,
   Users,
 } from "lucide-react";
@@ -35,6 +34,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+
+import {
+  SaveAuthorsButton,
+  SubmitSubmissionButton,
+  UploadFileButton,
+} from "./submission-action-buttons";
 
 type TrabalhoPageProps = {
   params: Promise<{
@@ -501,12 +506,7 @@ export default async function TrabalhoPage({
               })}
 
               <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  className="bg-[#245b7a] hover:bg-[#173f59]"
-                >
-                  Salvar autores
-                </Button>
+                <SaveAuthorsButton />
               </div>
             </form>
           ) : (
@@ -644,16 +644,19 @@ export default async function TrabalhoPage({
                           </p>
                         </div>
 
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          className="border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                        >
-                          <Upload />
-                          {ethicsFile
-                            ? "Substituir parecer do CEP"
-                            : "Enviar parecer do CEP"}
-                        </Button>
+                        <UploadFileButton
+                          outline
+                          sentLabel={
+                            ethicsFile
+                              ? "Substituir parecer do CEP"
+                              : "Enviar parecer do CEP"
+                          }
+                          pendingLabel={
+                            ethicsFile
+                              ? "Substituindo parecer..."
+                              : "Enviando parecer..."
+                          }
+                        />
                       </form>
                     </UploadFormWrapper>
                   )}
@@ -747,16 +750,20 @@ export default async function TrabalhoPage({
                       </p>
                     </div>
 
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      className="w-full border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                    >
-                      <Upload />
-                      {advisorDeclaration
-                        ? "Substituir declaração"
-                        : "Enviar declaração"}
-                    </Button>
+                    <UploadFileButton
+                      outline
+                      fullWidth
+                      sentLabel={
+                        advisorDeclaration
+                          ? "Substituir declaração"
+                          : "Enviar declaração"
+                      }
+                      pendingLabel={
+                        advisorDeclaration
+                          ? "Substituindo declaração..."
+                          : "Enviando declaração..."
+                      }
+                    />
                   </form>
                 </UploadFormWrapper>
               )}
@@ -911,15 +918,19 @@ export default async function TrabalhoPage({
                     </p>
                   </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#245b7a] hover:bg-[#173f59]"
-                  >
-                    <Upload />
-                    {identifiedFile || anonymousFile
-                      ? "Substituir os dois arquivos"
-                      : "Enviar os dois arquivos"}
-                  </Button>
+                  <UploadFileButton
+                    fullWidth
+                    sentLabel={
+                      identifiedFile || anonymousFile
+                        ? "Substituir os dois arquivos"
+                        : "Enviar os dois arquivos"
+                    }
+                    pendingLabel={
+                      identifiedFile || anonymousFile
+                        ? "Substituindo arquivos..."
+                        : "Enviando arquivos..."
+                    }
+                  />
                 </form>
               </UploadFormWrapper>
             )}
@@ -996,14 +1007,7 @@ export default async function TrabalhoPage({
                   automaticamente após o envio.
                 </p>
 
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="bg-[#245b7a] hover:bg-[#173f59]"
-                >
-                  <Send />
-                  Submeter trabalho definitivamente
-                </Button>
+                <SubmitSubmissionButton />
               </div>
             </form>
           </CardContent>

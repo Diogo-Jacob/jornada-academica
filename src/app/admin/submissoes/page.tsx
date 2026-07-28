@@ -85,12 +85,7 @@ function getStatusClass(status: string) {
   );
 }
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date));
-}
+import { formatDateTimeBR } from "@/lib/formatters/date";
 
 export default async function SubmissoesAdminPage({
   searchParams,
@@ -453,9 +448,7 @@ export default async function SubmissoesAdminPage({
 
                           <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
                             Atualizado em{" "}
-                            {formatDate(
-                              submission.updated_at
-                            )}
+                            {formatDateTimeBR(submission.updated_at)}
                           </span>
                         </div>
 

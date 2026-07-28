@@ -14,6 +14,8 @@ import { createSubmission } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useFormStatus } from "react-dom";
+import { Loader2 } from "lucide-react";
 
 const MIN_TOTAL_AUTHORS = 2;
 const MAX_TOTAL_AUTHORS = 7;
@@ -351,14 +353,7 @@ export function SubmissionInitialForm({
           </Link>
         </Button>
 
-        <Button
-          type="submit"
-          disabled={!canSubmit}
-          className="bg-[#245b7a] hover:bg-[#173f59]"
-        >
-          Criar rascunho e continuar
-          <ArrowRight />
-        </Button>
+        <CreateSubmissionButton canSubmit={canSubmit} />
       </div>
     </form>
   );
@@ -506,5 +501,33 @@ function TermsBox({
         {children}
       </span>
     </label>
+  );
+}
+
+function CreateSubmissionButton({
+  canSubmit,
+}: {
+  canSubmit: boolean;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      disabled={!canSubmit || pending}
+      className="bg-[#245b7a] hover:bg-[#173f59] disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          Criando rascunho...
+        </>
+      ) : (
+        <>
+          Criar rascunho e continuar
+          <ArrowRight />
+        </>
+      )}
+    </Button>
   );
 }
