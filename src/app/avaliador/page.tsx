@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { CreatorCredit } from "@/components/creator-credit";
+import { formatDateTimeBR } from "@/lib/formatters/date";
 
 type Assignment = {
   id: string;
@@ -71,13 +72,6 @@ function getAssignmentStatusClass(status: string) {
     classes[status] ??
     "border-[#d9e8ef] bg-white text-[#102a3d]"
   );
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date));
 }
 
 export default async function AvaliadorPage() {
@@ -385,7 +379,7 @@ export default async function AvaliadorPage() {
 
                               <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
                                 Atribuído em{" "}
-                                {formatDate(assignment.assigned_at)}
+                                {formatDateTimeBR(assignment.assigned_at)}
                               </span>
                             </div>
 

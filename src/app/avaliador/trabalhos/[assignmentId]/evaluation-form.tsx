@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardCheck } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { completeEvaluation } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CompleteEvaluationButton } from "./complete-evaluation-button";
 
 type Criterion = {
   id: string;
@@ -291,13 +292,7 @@ export function EvaluationForm({
                   </p>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="bg-green-700 hover:bg-green-800"
-                >
-                  <CheckCircle2 />
-                  Concluir avaliação
-                </Button>
+                <CompleteEvaluationButton />
               </div>
             </div>
           )}

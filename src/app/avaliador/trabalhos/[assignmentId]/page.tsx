@@ -23,6 +23,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { formatDateTimeBR } from "@/lib/formatters/date";
+import { CreatorCredit } from "@/components/creator-credit";
 
 type AvaliadorTrabalhoPageProps = {
   params: Promise<{
@@ -112,13 +114,6 @@ function formatFileSize(size: number) {
   }
 
   return `${(size / 1024).toFixed(1)} KB`;
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date));
 }
 
 export default async function AvaliadorTrabalhoPage({
@@ -443,7 +438,7 @@ export default async function AvaliadorTrabalhoPage({
 
               <HeroInfo
                 label="Atribuído em"
-                value={formatDate(assignment.assigned_at)}
+                value={formatDateTimeBR(assignment.assigned_at)}
               />
 
               <HeroInfo
@@ -611,6 +606,10 @@ export default async function AvaliadorTrabalhoPage({
           <p>
             Área restrita do avaliador.
           </p>
+        </div>
+
+        <div className="border-t border-[#eef7fa] px-4 py-3 text-center text-[11px] leading-5 text-[#5f7d90]/75">
+          <CreatorCredit />
         </div>
       </footer>
     </div>
