@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 const MAX_PDF_SIZE = 5 * 1024 * 1024;
 const PDF_MIME_TYPE = "application/pdf";
 const STORAGE_BUCKET = "submission-files";
+const MIN_TOTAL_AUTHORS = 2;
+const MAX_TOTAL_AUTHORS = 7;
 
 function redirectWithError(message: string): never {
   redirect(
@@ -124,11 +126,11 @@ export async function createSubmission(formData: FormData) {
 
   if (
     !Number.isInteger(totalAuthors) ||
-    totalAuthors < 2 ||
-    totalAuthors > 10
+    totalAuthors < MIN_TOTAL_AUTHORS ||
+    totalAuthors > MAX_TOTAL_AUTHORS
   ) {
     redirectWithError(
-      "O trabalho deve possuir entre 2 e 10 autores, incluindo o autor responsável e o orientador."
+      "O trabalho deve possuir entre 2 e 7 autores, incluindo o autor responsável e o orientador."
     );
   }
 

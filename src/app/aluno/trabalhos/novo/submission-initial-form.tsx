@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const MIN_TOTAL_AUTHORS = 2;
+const MAX_TOTAL_AUTHORS = 7;
+
 type Category = {
   id: string;
   name: string;
@@ -249,8 +252,11 @@ export function SubmissionInitialForm({
             required
           >
             {Array.from(
-              { length: 9 },
-              (_, index) => index + 2
+              {
+                length:
+                  MAX_TOTAL_AUTHORS - MIN_TOTAL_AUTHORS + 1,
+              },
+              (_, index) => index + MIN_TOTAL_AUTHORS
             ).map((amount) => (
               <option
                 key={amount}
@@ -260,6 +266,10 @@ export function SubmissionInitialForm({
               </option>
             ))}
           </select>
+          <p className="text-xs leading-5 text-[#5f7d90]">
+            O trabalho pode possuir no máximo 7 autores no total,
+            incluindo o autor responsável e o orientador.
+          </p>
         </div>
 
         <div className="rounded-3xl border border-[#d9e8ef] bg-[#eef7fa] p-5">

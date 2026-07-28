@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreatorCredit } from "@/components/creator-credit";
 
 const editalDisponivel = false;
 

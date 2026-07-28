@@ -15,6 +15,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { CreatorCredit } from "@/components/creator-credit";
 
 type Assignment = {
   id: string;
@@ -432,6 +433,10 @@ export default async function AvaliadorPage() {
           <p>
             Área restrita do avaliador.
           </p>
+        </div>
+
+        <div className="border-t border-[#eef7fa] px-4 py-3 text-center text-[11px] leading-5 text-[#5f7d90]/75">
+          <CreatorCredit />
         </div>
       </footer>
     </div>

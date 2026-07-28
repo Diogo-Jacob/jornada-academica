@@ -13,6 +13,9 @@ const STORAGE_BUCKET = "submission-files";
 const MAX_DOCX_SIZE = 2 * 1024 * 1024;
 const MAX_PDF_SIZE = 5 * 1024 * 1024;
 
+const MIN_TOTAL_AUTHORS = 2;
+const MAX_TOTAL_AUTHORS = 7;
+
 const DOCX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -242,16 +245,17 @@ export async function saveAuthorComposition(
     submission.total_authors;
 
   if (
-    !totalAuthors ||
-    totalAuthors < 2 ||
-    totalAuthors > 10
-  ) {
-    redirectWithMessage(
-      submissionId,
-      "erro",
-      "A quantidade total de autores não é válida."
-    );
-  }
+  !totalAuthors ||
+  totalAuthors < MIN_TOTAL_AUTHORS ||
+  totalAuthors > MAX_TOTAL_AUTHORS
+) {
+  redirectWithMessage(
+    submissionId,
+    "erro",
+    "A quantidade total de autores deve estar entre 2 e 7, incluindo o autor responsável e o orientador.",
+    "autores-section"
+  );
+}
 
   const {
     data: submissionDetails,
@@ -1183,6 +1187,18 @@ export async function submitSubmission(
       submissionId,
       "erro",
       "A quantidade total de autores não foi informada."
+    );
+  }
+
+  if (
+    totalAuthors < MIN_TOTAL_AUTHORS ||
+    totalAuthors > MAX_TOTAL_AUTHORS
+  ) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "O trabalho deve possuir entre 2 e 7 autores, incluindo o autor responsável e o orientador.",
+      "autores-section"
     );
   }
 

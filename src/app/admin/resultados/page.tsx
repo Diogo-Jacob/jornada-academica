@@ -498,7 +498,7 @@ export default async function AdminResultadosPage({
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
 const { data: eventSettingsData, error: eventSettingsError } =
@@ -508,8 +508,16 @@ const { data: eventSettingsData, error: eventSettingsError } =
     .limit(1)
     .maybeSingle();
 
-if (eventSettingsError) {
-  console.error("Erro ao carregar configurações do evento:", {
+const shouldIgnoreEventSettingsError =
+  eventSettingsError &&
+  (
+    eventSettingsError.code === "42P01" ||
+    eventSettingsError.code === "PGRST116" ||
+    eventSettingsError.code === "42501"
+  );
+
+if (eventSettingsError && !shouldIgnoreEventSettingsError) {
+  console.warn("Aviso ao carregar configurações do evento:", {
     message: eventSettingsError.message,
     details: eventSettingsError.details,
     hint: eventSettingsError.hint,
@@ -518,12 +526,15 @@ if (eventSettingsError) {
 }
 
 const eventSettings =
-  (eventSettingsData ?? null) as Record<string, unknown> | null;
+  eventSettingsError
+    ? null
+    : ((eventSettingsData ?? null) as Record<string, unknown> | null);
 
 const submissionEndDate = getSubmissionEndDate(eventSettings);
+
 const hasSubmissionPeriodEnded = submissionEndDate
   ? new Date() > submissionEndDate
-  : false;  
+  : false;
 
   const { data: submissionsData, error: submissionsError } =
     await supabase

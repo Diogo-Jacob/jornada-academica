@@ -36,7 +36,7 @@ async function getEvaluatorAssignment(
     !profile.is_active ||
     profile.role !== "evaluator"
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: assignment, error: assignmentError } =

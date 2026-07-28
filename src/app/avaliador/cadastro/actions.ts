@@ -1,12 +1,73 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function redirectWithError(message: string): never {
   redirect(
     `/avaliador/cadastro?erro=${encodeURIComponent(message)}`
   );
+}
+
+function getSiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "https://www.ixjornadaacademica.com.br"
+  );
+}
+
+function createPublicAuthClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL não foi configurada.");
+  }
+
+  if (!supabaseKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY não foi configurada."
+    );
+  }
+
+  return createSupabaseClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+function getFriendlyAuthError(message: string) {
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("user already registered") ||
+    normalizedMessage.includes("already registered") ||
+    normalizedMessage.includes("already exists")
+  ) {
+    return "Já existe uma conta cadastrada com este e-mail.";
+  }
+
+  if (
+    normalizedMessage.includes("email rate limit") ||
+    normalizedMessage.includes("rate limit")
+  ) {
+    return "O sistema atingiu temporariamente o limite de envio de e-mails. Tente novamente em alguns minutos ou contate a organização.";
+  }
+
+  if (
+    normalizedMessage.includes("password") ||
+    normalizedMessage.includes("weak")
+  ) {
+    return "A senha informada não atende aos critérios mínimos de segurança.";
+  }
+
+  return `Não foi possível criar sua conta. Detalhe: ${message}`;
 }
 
 export async function registerEvaluator(formData: FormData) {
@@ -92,26 +153,35 @@ export async function registerEvaluator(formData: FormData) {
     );
   }
 
-  const { data: createdUser, error: createUserError } =
-    await adminSupabase.auth.admin.createUser({
+  const publicSupabase = createPublicAuthClient();
+
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?next=/login`;
+
+  const { data: signUpData, error: signUpError } =
+    await publicSupabase.auth.signUp({
       email,
       password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        role: "evaluator",
+      options: {
+        emailRedirectTo,
+        data: {
+          full_name: fullName,
+          role: "evaluator",
+        },
       },
     });
 
-  if (createUserError || !createdUser.user) {
+  if (signUpError || !signUpData.user) {
     console.error("Erro ao criar usuário avaliador:", {
-      message: createUserError?.message,
-      status: createUserError?.status,
-      name: createUserError?.name,
+      message: signUpError?.message,
+      status: signUpError?.status,
+      name: signUpError?.name,
     });
 
     redirectWithError(
-      "Não foi possível criar sua conta. Tente novamente."
+      getFriendlyAuthError(
+        signUpError?.message ??
+          "Erro desconhecido ao criar usuário avaliador."
+      )
     );
   }
 
@@ -119,7 +189,7 @@ export async function registerEvaluator(formData: FormData) {
     .from("profiles")
     .upsert(
       {
-        id: createdUser.user.id,
+        id: signUpData.user.id,
         full_name: fullName,
         email,
         role: "evaluator",
@@ -139,7 +209,7 @@ export async function registerEvaluator(formData: FormData) {
     });
 
     await adminSupabase.auth.admin.deleteUser(
-      createdUser.user.id
+      signUpData.user.id
     );
 
     redirectWithError(
@@ -149,7 +219,7 @@ export async function registerEvaluator(formData: FormData) {
 
   redirect(
     `/login?sucesso=${encodeURIComponent(
-      "Cadastro de avaliador criado com sucesso. Entre com seu e-mail e senha para acessar o painel."
+      "Cadastro de avaliador realizado. Enviamos um link de confirmação para seu e-mail. Confirme sua conta antes de acessar o painel do avaliador."
     )}`
   );
 }

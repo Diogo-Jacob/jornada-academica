@@ -9,6 +9,7 @@ import {
 import { redirect } from "next/navigation";
 import { AlunoMobileMenu } from "./aluno-mobile-menu";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { CreatorCredit } from "@/components/creator-credit";
 
 type AlunoLayoutProps = {
   children: ReactNode;
@@ -123,6 +124,10 @@ export default async function AlunoLayout({
           <p>
             Área do aluno.
           </p>
+        </div>
+
+        <div className="border-t border-[#eef7fa] px-4 py-3 text-center text-[11px] leading-5 text-[#5f7d90]/75">
+          <CreatorCredit />
         </div>
       </footer>
     </div>

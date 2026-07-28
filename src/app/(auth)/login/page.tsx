@@ -28,10 +28,6 @@ export default async function LoginPage({
           <Stethoscope className="size-7" />
         </div>
 
-        <p className="text-sm font-bold uppercase tracking-[0.25em] text-[#6fb6cf]">
-          Plataforma científica
-        </p>
-
         <h1 className="font-display mt-3 text-4xl font-bold leading-tight text-white">
           Bem-vindo de volta
         </h1>

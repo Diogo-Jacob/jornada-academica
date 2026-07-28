@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StartEvaluationButton } from "./evaluation-action-buttons";
 import { ConfirmDeclineButton } from "./confirm-decline-button";
 import {
   ArrowLeft,
@@ -569,13 +570,7 @@ export default async function AvaliadorTrabalhoPage({
                     value={assignment.id}
                   />
 
-                  <Button
-                    type="submit"
-                    className="bg-[#245b7a] hover:bg-[#173f59]"
-                  >
-                    <PlayCircle />
-                    Iniciar avaliação
-                  </Button>
+                  <StartEvaluationButton />
                 </form>
 
                 {canDecline && (
