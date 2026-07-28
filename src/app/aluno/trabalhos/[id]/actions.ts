@@ -21,6 +21,8 @@ const DOCX_MIME_TYPE =
 
 const PDF_MIME_TYPE = "application/pdf";
 
+const UPLOAD_TIMEOUT_MS = 45_000;
+
 function redirectWithMessage(
   submissionId: string,
   type: "erro" | "sucesso",
@@ -902,6 +904,31 @@ export async function uploadAdvisorDeclaration(
   );
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = UPLOAD_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      promise,
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 /* =========================================================
    ARQUIVOS DOCX
 ========================================================= */
@@ -987,17 +1014,19 @@ export async function uploadSubmissionFiles(
         `${submissionId}/${item.type}/${fileId}.docx`;
 
       const { error: uploadError } =
-        await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(
-            storagePath,
-            item.file,
-            {
-              contentType:
-                DOCX_MIME_TYPE,
-              upsert: false,
-            }
-          );
+        await withTimeout(
+          supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(
+              storagePath,
+              item.file,
+              {
+                contentType: DOCX_MIME_TYPE,
+                upsert: false,
+              }
+            ),
+          "O envio dos arquivos demorou mais que o esperado. Verifique sua conexão e tente novamente."
+        );
 
       if (uploadError) {
         throw uploadError;
@@ -1074,10 +1103,13 @@ export async function uploadSubmissionFiles(
   } catch (error) {
     uploadFailure = true;
 
-    console.error(
-      "Erro ao enviar arquivos:",
-      error
-    );
+    console.error("Erro ao enviar arquivos:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
 
     if (uploadedPaths.length > 0) {
       await supabase.storage
@@ -1090,7 +1122,8 @@ export async function uploadSubmissionFiles(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível enviar os arquivos. Tente novamente."
+      "Não foi possível enviar os arquivos. Verifique sua conexão, confirme se os arquivos possuem no máximo 2 MB cada e tente novamente.",
+      "arquivos-trabalho-section"
     );
   }
 
