@@ -7,6 +7,33 @@ import { sendEmail } from "@/services/email/send-email";
 import { evaluationDeclinedAdminEmail } from "@/services/email/templates/evaluation-declined-admin";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
+const ACTION_TIMEOUT_MS = 30_000;
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = ACTION_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function redirectWithMessage(
   assignmentId: string,
   type: "erro" | "sucesso",
@@ -242,26 +269,48 @@ export async function startEvaluation(
     redirectWithMessage(
       assignmentId,
       "erro",
-      "Esta avaliação não está pendente de início."
+      "Esta avaliação já foi iniciada ou não está mais pendente. Atualize a página para continuar."
     );
   }
 
-  const { error: updateError } = await supabase
-    .from("evaluation_assignments")
-    .update({
-      status: "in_progress",
-      started_at: new Date().toISOString(),
-    })
-    .eq("id", assignmentId)
-    .eq("evaluator_id", profile.id)
-    .eq("status", "assigned");
+  let result;
 
-  if (updateError) {
+  try {
+    result = await withTimeout(
+      async () =>
+        await supabase
+          .from("evaluation_assignments")
+          .update({
+            status: "in_progress",
+            started_at: new Date().toISOString(),
+          })
+          .eq("id", assignmentId)
+          .eq("evaluator_id", profile.id)
+          .eq("status", "assigned"),
+      "A tentativa de iniciar a avaliação demorou mais que o esperado."
+    );
+  } catch (error) {
+    console.error("Timeout ao iniciar avaliação:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A tentativa de iniciar a avaliação demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  if (result.error) {
     console.error("Erro ao iniciar avaliação:", {
-      message: updateError.message,
-      details: updateError.details,
-      hint: updateError.hint,
-      code: updateError.code,
+      message: result.error.message,
+      details: result.error.details,
+      hint: result.error.hint,
+      code: result.error.code,
     });
 
     redirectWithMessage(
@@ -305,21 +354,43 @@ export async function declineEvaluation(
 
   const declinedAt = new Date().toISOString();
 
-  const { error: updateError } = await supabase
-    .from("evaluation_assignments")
-    .update({
-      status: "declined",
-    })
-    .eq("id", assignmentId)
-    .eq("evaluator_id", profile.id)
-    .eq("status", "assigned");
+  let result;
 
-  if (updateError) {
+  try {
+    result = await withTimeout(
+      async () =>
+        await supabase
+          .from("evaluation_assignments")
+          .update({
+            status: "declined",
+          })
+          .eq("id", assignmentId)
+          .eq("evaluator_id", profile.id)
+          .eq("status", "assigned"),
+      "A tentativa de recusar a avaliação demorou mais que o esperado."
+    );
+  } catch (error) {
+    console.error("Timeout ao recusar avaliação:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A tentativa de recusar a avaliação demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  if (result.error) {
     console.error("Erro ao recusar avaliação:", {
-      message: updateError.message,
-      details: updateError.details,
-      hint: updateError.hint,
-      code: updateError.code,
+      message: result.error.message,
+      details: result.error.details,
+      hint: result.error.hint,
+      code: result.error.code,
     });
 
     redirectWithMessage(
@@ -521,18 +592,40 @@ export async function completeEvaluation(
     };
   });
 
-  const { error: upsertError } = await supabase
-    .from("evaluation_responses")
-    .upsert(responses, {
-      onConflict: "assignment_id,criterion_id",
+  let upsertResult;
+
+  try {
+    upsertResult = await withTimeout(
+      async () =>
+        await supabase
+          .from("evaluation_responses")
+          .upsert(responses, {
+            onConflict: "assignment_id,criterion_id",
+          }),
+      "A tentativa de salvar as respostas demorou mais que o esperado."
+    );
+  } catch (error) {
+    console.error("Timeout ao salvar respostas:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
     });
 
-  if (upsertError) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A tentativa de salvar as respostas demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  if (upsertResult.error) {
     console.error("Erro ao salvar respostas:", {
-      message: upsertError.message,
-      details: upsertError.details,
-      hint: upsertError.hint,
-      code: upsertError.code,
+      message: upsertResult.error.message,
+      details: upsertResult.error.details,
+      hint: upsertResult.error.hint,
+      code: upsertResult.error.code,
     });
 
     redirectWithMessage(
@@ -542,22 +635,44 @@ export async function completeEvaluation(
     );
   }
 
-  const { error: updateError } = await supabase
-    .from("evaluation_assignments")
-    .update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", assignmentId)
-    .eq("evaluator_id", profile.id)
-    .eq("status", "in_progress");
+  let updateResult;
 
-  if (updateError) {
+  try {
+    updateResult = await withTimeout(
+      async () =>
+        await supabase
+          .from("evaluation_assignments")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", assignmentId)
+          .eq("evaluator_id", profile.id)
+          .eq("status", "in_progress"),
+      "A tentativa de concluir a avaliação demorou mais que o esperado."
+    );
+  } catch (error) {
+    console.error("Timeout ao concluir avaliação:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A tentativa de concluir a avaliação demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  if (updateResult.error) {
     console.error("Erro ao concluir avaliação:", {
-      message: updateError.message,
-      details: updateError.details,
-      hint: updateError.hint,
-      code: updateError.code,
+      message: updateResult.error.message,
+      details: updateResult.error.details,
+      hint: updateResult.error.hint,
+      code: updateResult.error.code,
     });
 
     redirectWithMessage(
