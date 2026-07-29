@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -7,7 +6,6 @@ import {
   FileCheck2,
   FileText,
   MessageSquareWarning,
-  PlayCircle,
   ShieldCheck,
   Star,
   Stethoscope,
@@ -32,6 +30,11 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import {
+  ApproveForEvaluationButton,
+  RequestCorrectionsButton,
+  StartDocumentReviewButton,
+} from "./admin-submission-action-buttons";
 
 type AdminSubmissionPageProps = {
   params: Promise<{
@@ -689,14 +692,7 @@ export default async function AdminSubmissionPage({
                     value={submission.id}
                   />
 
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="bg-[#245b7a] hover:bg-[#173f59]"
-                  >
-                    <PlayCircle />
-                    Iniciar conferência documental
-                  </Button>
+                  <StartDocumentReviewButton />
                 </form>
               </div>
             </div>
@@ -1043,13 +1039,7 @@ export default async function AdminSubmissionPage({
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  className="w-full"
-                >
-                  Solicitar correções ao aluno
-                </Button>
+                <RequestCorrectionsButton />
               </form>
 
               <form
@@ -1088,13 +1078,9 @@ export default async function AdminSubmissionPage({
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full bg-green-700 hover:bg-green-800"
-                  disabled={!allDocumentsPresent}
-                >
-                  Aprovar para avaliação científica
-                </Button>
+                <ApproveForEvaluationButton
+  disabled={!allDocumentsPresent}
+/>
 
                 {!allDocumentsPresent && (
                   <p className="text-xs leading-5 text-red-700">

@@ -7,6 +7,33 @@ import { correctionRequestedEmail } from "@/services/email/templates/correction-
 import { submissionApprovedEmail } from "@/services/email/templates/submission-approved";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
+const ACTION_TIMEOUT_MS = 30_000;
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = ACTION_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function redirectWithMessage(
   submissionId: string,
   type: "erro" | "sucesso",
@@ -31,7 +58,7 @@ async function getAdminSubmission(
       profile.role
     )
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const {
@@ -150,19 +177,43 @@ export async function startDocumentReview(
   const reviewedAt =
     new Date().toISOString();
 
-  const { error } = await supabase
-    .from("submissions")
-    .update({
-      status: "under_document_review",
-      document_reviewed_by: profile.id,
-      document_reviewed_at: reviewedAt,
-      document_review_notes: null,
-    })
-    .eq("id", submissionId)
-    .in("status", [
-      "submitted",
-      "resubmitted",
-    ]);
+  let result;
+
+  try {
+    result = await withTimeout(
+      async () =>
+        await supabase
+          .from("submissions")
+          .update({
+            status: "under_document_review",
+            document_reviewed_by: profile.id,
+            document_reviewed_at: reviewedAt,
+            document_review_notes: null,
+          })
+          .eq("id", submissionId)
+          .in("status", [
+            "submitted",
+            "resubmitted",
+          ]),
+      "A tentativa de iniciar a conferência documental demorou mais que o esperado."
+    );
+  } catch (error) {
+    console.error("Timeout ao iniciar conferência documental:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A tentativa de iniciar a conferência documental demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  const error = result.error;
 
   if (error) {
     console.error(
@@ -250,19 +301,43 @@ export async function requestCorrections(
   const reviewedAt =
     new Date().toISOString();
 
-  const { error } = await supabase
-    .from("submissions")
-    .update({
-      status: "correction_requested",
-      document_review_notes: notes,
-      document_reviewed_by: profile.id,
-      document_reviewed_at: reviewedAt,
-    })
-    .eq("id", submissionId)
-    .eq(
-      "status",
-      "under_document_review"
+  let result;
+
+  try {
+    result = await withTimeout(
+      async () =>
+        await supabase
+          .from("submissions")
+          .update({
+            status: "correction_requested",
+            document_review_notes: notes,
+            document_reviewed_by: profile.id,
+            document_reviewed_at: reviewedAt,
+          })
+          .eq("id", submissionId)
+          .eq(
+            "status",
+            "under_document_review"
+          ),
+      "A tentativa de solicitar correções demorou mais que o esperado."
     );
+  } catch (error) {
+    console.error("Timeout ao solicitar correções:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A tentativa de solicitar correções demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  const error = result.error;
 
   if (error) {
     console.error(
@@ -292,18 +367,23 @@ export async function requestCorrections(
     responsibleAuthor?.email &&
     submission.title
   ) {
-    const emailResult = await sendEmail({
-      to: responsibleAuthor.email,
-      subject: `Correções solicitadas - ${submission.protocol ?? submission.title}`,
-      html: correctionRequestedEmail({
-        studentName:
-          responsibleAuthor.full_name ?? "Aluno(a)",
-        title: submission.title,
-        protocol: submission.protocol,
-        notes,
-        reviewedAt: formatDateTime(reviewedAt),
-      }),
-    });
+    const emailResult = await withTimeout(
+      async () =>
+        await sendEmail({
+          to: responsibleAuthor.email,
+          subject: `Correções solicitadas - ${submission.protocol ?? submission.title}`,
+          html: correctionRequestedEmail({
+            studentName:
+              responsibleAuthor.full_name ?? "Aluno(a)",
+            title: submission.title,
+            protocol: submission.protocol,
+            notes,
+            reviewedAt: formatDateTime(reviewedAt),
+          }),
+        }),
+      "O envio do e-mail de correção demorou mais que o esperado.",
+      20_000
+    );
 
     if (!emailResult.success) {
       console.error(
@@ -373,23 +453,47 @@ export async function approveForEvaluation(
   const reviewedAt =
     new Date().toISOString();
 
-  const { error } = await supabase
-    .from("submissions")
-    .update({
-      status:
-        "approved_for_evaluation",
-      document_review_notes:
-        notes || null,
-      document_reviewed_by:
-        profile.id,
-      document_reviewed_at:
-        reviewedAt,
-    })
-    .eq("id", submissionId)
-    .eq(
-      "status",
-      "under_document_review"
+  let result;
+
+  try {
+    result = await withTimeout(
+      async () =>
+        await supabase
+          .from("submissions")
+          .update({
+            status:
+              "approved_for_evaluation",
+            document_review_notes:
+              notes || null,
+            document_reviewed_by:
+              profile.id,
+            document_reviewed_at:
+              reviewedAt,
+          })
+          .eq("id", submissionId)
+          .eq(
+            "status",
+            "under_document_review"
+          ),
+      "A tentativa de aprovar a submissão demorou mais que o esperado."
     );
+  } catch (error) {
+    console.error("Timeout ao aprovar submissão:", {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A tentativa de aprovar a submissão demorou mais que o esperado. Atualize a página e tente novamente."
+    );
+  }
+
+  const error = result.error;
 
   if (error) {
     console.error(
@@ -419,19 +523,24 @@ export async function approveForEvaluation(
     responsibleAuthor?.email &&
     submission.title
   ) {
-    const emailResult = await sendEmail({
-      to: responsibleAuthor.email,
-      subject: `Trabalho aprovado para avaliação científica - ${
-        submission.protocol ?? submission.title
-      }`,
-      html: submissionApprovedEmail({
-        studentName:
-          responsibleAuthor.full_name ?? "Aluno(a)",
-        title: submission.title,
-        protocol: submission.protocol,
-        approvedAt: formatDateTime(reviewedAt),
-      }),
-    });
+    const emailResult = await withTimeout(
+      async () =>
+        await sendEmail({
+          to: responsibleAuthor.email,
+          subject: `Trabalho aprovado para avaliação científica - ${
+            submission.protocol ?? submission.title
+          }`,
+          html: submissionApprovedEmail({
+            studentName:
+              responsibleAuthor.full_name ?? "Aluno(a)",
+            title: submission.title,
+            protocol: submission.protocol,
+            approvedAt: formatDateTime(reviewedAt),
+          }),
+        }),
+      "O envio do e-mail de aprovação demorou mais que o esperado.",
+      20_000
+    );
 
     if (!emailResult.success) {
       console.error(
