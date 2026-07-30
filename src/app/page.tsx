@@ -3,16 +3,9 @@ import { PublicSiteHeader } from "@/components/public-site-header";
 import { RevealOnScroll } from "@/components/reveal-on-scroll";
 import {
   ArrowRight,
-  CalendarDays,
-  ChevronDown,
-  Clock3,
   Download,
   MapPin,
-  MessageSquareText,
   Mic2,
-  Sparkles,
-  Stethoscope,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreatorCredit } from "@/components/creator-credit";
@@ -83,6 +76,37 @@ const scheduleItems = [
   },
 ];
 
+const commissionMembers = [
+  {
+    name: "Nome da pessoa 1",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 2",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 3",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 4",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 5",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 6",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Nome da pessoa 7",
+    image: "/campgo-logo.png",
+  },
+];
+
 const sponsors = [
   {
     name: "UNIVILLE",
@@ -93,6 +117,11 @@ const sponsors = [
     name: "Sociedade Joinvilense de Medicina",
     role: "Apoiadora científica",
     image: "/logo-sjm.png",
+  },
+  {
+    name: "Medway",
+    role: "Apoiadora",
+    image: "/logo-medway.png",
   },
   {
     name: "CAMPGO",
@@ -221,56 +250,97 @@ export default function HomePage() {
           id="comissao"
           className="border-y border-[#d9e8ef] bg-[#102a3d]"
         >
-          <div className="mx-auto grid max-w-7xl gap-12 px-6 py-24 text-white lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:px-8">
-            <div>
-              <div className="mb-6 flex items-center gap-4 text-[#6fb6cf]">
-                <span className="h-px w-10 bg-[#6fb6cf]" />
+          <div className="mx-auto max-w-7xl px-6 py-24 text-white lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+              <div>
+                <div className="mb-6 flex items-center gap-4 text-[#6fb6cf]">
+                  <span className="h-px w-10 bg-[#6fb6cf]" />
 
-                <p className="text-sm font-bold uppercase tracking-[0.35em]">
-                  Mensagem da Comissão
-                </p>
+                  <p className="text-sm font-bold uppercase tracking-[0.35em]">
+                    Mensagem da Comissão
+                  </p>
+                </div>
+
+                <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                  Uma palavra da
+                  <span className="block text-[#6fb6cf]">
+                    Comissão Científica
+                  </span>
+                </h2>
               </div>
 
-              <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Uma palavra da
-                <span className="block text-[#6fb6cf]">
-                  Comissão Científica
-                </span>
-              </h2>
+              <div className="relative">
+                <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-[2rem] bg-[#6fb6cf]/10 blur-xl" />
+
+                <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 shadow-2xl shadow-black/10 backdrop-blur sm:p-10">
+                  <div className="mb-6 text-7xl font-bold leading-none text-[#6fb6cf]/30">
+                    “
+                  </div>
+
+                  <div className="space-y-6 text-lg leading-8 text-[#d9e8ef] sm:text-xl sm:leading-9">
+                    <p className="italic text-white/90">
+                      É com grande satisfação que apresentamos a Jornada Acadêmica de
+                      Medicina, um evento construído para fortalecer a formação médica, a
+                      produção científica e a integração entre estudantes, docentes,
+                      avaliadores e profissionais da saúde.
+                    </p>
+
+                    <p>
+                      Nesta edição, reafirmamos nosso compromisso com uma experiência
+                      acadêmica organizada, ética e formativa, valorizando o protagonismo
+                      estudantil e incentivando a participação ativa na construção do
+                      conhecimento científico.
+                    </p>
+
+                    <p>
+                      Convidamos todos os participantes a vivenciarem este momento com
+                      dedicação, curiosidade e espírito colaborativo, contribuindo para uma
+                      Jornada marcada pelo aprendizado, pela troca de experiências e pelo
+                      crescimento coletivo.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-[2rem] bg-[#6fb6cf]/10 blur-xl" />
+            <div className="mt-20">
+              <div className="mx-auto max-w-3xl text-center">
+                <p className="text-sm font-bold uppercase tracking-[0.35em] text-[#6fb6cf]">
+                  Comissão Científica
+                </p>
 
-              <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.06] p-8 shadow-2xl shadow-black/10 backdrop-blur sm:p-10">
-                <div className="mb-6 text-7xl font-bold leading-none text-[#6fb6cf]/30">
-                  “
-                </div>
+                <h3 className="font-display mt-3 text-3xl font-bold leading-tight text-white sm:text-4xl">
+                  Conheça os integrantes responsáveis pela organização.
+                </h3>
+              </div>
 
-                <div className="space-y-6 text-lg leading-8 text-[#d9e8ef] sm:text-xl sm:leading-9">
-                  <p className="italic text-white/90">
-                    É com grande satisfação que apresentamos a Jornada Acadêmica de
-                    Medicina, um evento construído para fortalecer a formação médica, a
-                    produção científica e a integração entre estudantes, docentes,
-                    avaliadores e profissionais da saúde.
-                  </p>
+              <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {commissionMembers.map((member, index) => (
+                  <RevealOnScroll
+                    key={member.name}
+                    delay={index * 80}
+                  >
+                    <div className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.06] shadow-2xl shadow-black/10 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-[#6fb6cf]/50 hover:bg-white/[0.09]">
+                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#07162a]">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(111,182,207,0.22),_transparent_45%)]" />
 
-                  <p>
-                    Nesta edição, reafirmamos nosso compromisso com uma experiência
-                    acadêmica organizada, ética e formativa, valorizando o protagonismo
-                    estudantil e incentivando a participação ativa na construção do
-                    conhecimento científico.
-                  </p>
+                        <img
+                          src={member.image}
+                          alt={`Foto de ${member.name}`}
+                          className="relative h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
 
-                  <p>
-                    Convidamos todos os participantes a vivenciarem este momento com
-                    dedicação, curiosidade e espírito colaborativo, contribuindo para uma
-                    Jornada marcada pelo aprendizado, pela troca de experiências e pelo
-                    crescimento coletivo.
-                  </p>
-                </div>
+                        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#07162a]/90 to-transparent" />
+                      </div>
 
-               
+                      <div className="p-5 text-center">
+                        <h4 className="text-lg font-bold text-white">
+                          {member.name}
+                        </h4>
+                      </div>
+                    </div>
+                  </RevealOnScroll>
+                ))}
               </div>
             </div>
           </div>
@@ -336,85 +406,86 @@ export default function HomePage() {
         </section>
       </RevealOnScroll>
 
-        <RevealOnScroll>
-          <section
-            id="local"
-            className="border-y border-[#d9e8ef] bg-[#eef7fa] px-6 py-24 text-[#102a3d] lg:px-8"
-          >
-            <div className="mx-auto max-w-7xl">
-              <div className="mb-12">
-                <div className="mb-6 flex items-center gap-4 text-[#245b7a]">
-                  <span className="h-px w-10 bg-[#245b7a]" />
+      <RevealOnScroll>
+        <section
+          id="local"
+          className="border-y border-[#d9e8ef] bg-[#eef7fa] px-6 py-24 text-[#102a3d] lg:px-8"
+        >
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-12">
+              <div className="mb-6 flex items-center gap-4 text-[#245b7a]">
+                <span className="h-px w-10 bg-[#245b7a]" />
 
-                  <p className="text-sm font-bold uppercase tracking-[0.35em]">
-                    Local do evento
-                  </p>
-                </div>
-
-                <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                  Onde a Jornada
-                  <span className="block text-[#245b7a]">
-                    acontece
-                  </span>
-                </h2>
-
-                <p className="mt-5 max-w-3xl text-lg leading-8 text-[#4a6678]">
-                  A Jornada será realizada na UNIVILLE, em Joinville, em um ambiente
-                  universitário preparado para receber estudantes, professores,
-                  avaliadores e convidados.
+                <p className="text-sm font-bold uppercase tracking-[0.35em]">
+                  Local do evento
                 </p>
               </div>
 
-              <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-                <div className="overflow-hidden rounded-[2rem] border border-[#c7dce6] bg-white shadow-sm">
-                  <div className="relative flex items-center justify-center border-b border-[#d9e8ef] bg-[#f7fbfd] p-8">
-                    <div className="absolute right-[-80px] top-[-80px] size-56 rounded-full bg-[#6fb6cf]/20 blur-3xl" />
-                    <div className="absolute bottom-[-100px] left-[-80px] size-64 rounded-full bg-[#245b7a]/10 blur-3xl" />
+              <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Onde a Jornada
+                <span className="block text-[#245b7a]">
+                  acontece
+                </span>
+              </h2>
 
-                    <img
-                      src="/logo-univille.png"
-                      alt="Logo UNIVILLE"
-                      className="relative max-h-28 w-auto object-contain"
-                    />
-                  </div>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-[#4a6678]">
+                A Jornada será realizada no Centro de Convenções da UNIVILLE, localizado
+                ao final do campus, em Joinville. O espaço foi escolhido por oferecer uma
+                estrutura adequada para receber estudantes, professores, avaliadores e
+                convidados.
+              </p>
+            </div>
 
-                  <div className="p-7">
-                    <div className="flex items-start gap-4">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef7fa] text-[#245b7a]">
-                        <MapPin className="size-6" />
-                      </div>
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
+              <div className="overflow-hidden rounded-[2rem] border border-[#c7dce6] bg-white shadow-sm">
+                <div className="relative flex items-center justify-center border-b border-[#d9e8ef] bg-[#f7fbfd] p-8">
+                  <div className="absolute right-[-80px] top-[-80px] size-56 rounded-full bg-[#6fb6cf]/20 blur-3xl" />
+                  <div className="absolute bottom-[-100px] left-[-80px] size-64 rounded-full bg-[#245b7a]/10 blur-3xl" />
 
-                      <div>
-                        <p className="text-xl font-bold text-[#102a3d]">
-                          {eventLocationName}
-                        </p>
+                  <img
+                    src="/logo-univille.png"
+                    alt="Logo UNIVILLE"
+                    className="relative max-h-28 w-auto object-contain"
+                  />
+                </div>
 
-                        <p className="mt-3 text-lg leading-8 text-[#4a6678]">
-                          {eventAddress}
-                        </p>
+                <div className="p-7">
+                  <div className="flex items-start gap-4">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef7fa] text-[#245b7a]">
+                      <MapPin className="size-6" />
+                    </div>
 
-                        <p className="mt-5 rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4 text-base leading-7 text-[#5f7d90]">
-                          O evento acontecerá no campus da UNIVILLE, em um espaço de
-                          convivência acadêmica, formação e troca de experiências.
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-xl font-bold text-[#102a3d]">
+                        {eventLocationName}
+                      </p>
+
+                      <p className="mt-3 text-lg leading-8 text-[#4a6678]">
+                        {eventAddress}
+                      </p>
+
+                      <p className="mt-5 rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4 text-base leading-7 text-[#5f7d90]">
+                        O evento acontecerá no Centro de Convenções da UNIVILLE, em um espaço preparado para atividades acadêmicas, formação e
+                        troca de experiências.
+                    </p>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="overflow-hidden rounded-[2rem] border border-[#c7dce6] bg-white shadow-sm">
-                  <iframe
-                    src={eventMapEmbedUrl}
-                    className="h-[460px] w-full border-0"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Mapa da UNIVILLE"
-                  />
-                </div>
+              <div className="overflow-hidden rounded-[2rem] border border-[#c7dce6] bg-white shadow-sm">
+                <iframe
+                  src={eventMapEmbedUrl}
+                  className="h-[460px] w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Mapa da UNIVILLE"
+                />
               </div>
             </div>
-          </section>
-        </RevealOnScroll>
+          </div>
+        </section>
+      </RevealOnScroll>
 
       <RevealOnScroll>
         <section
@@ -555,28 +626,30 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {sponsors.map((sponsor, index) => (
               <RevealOnScroll
                 key={sponsor.name}
                 delay={index * 100}
               >
-                <div className="group flex min-h-64 flex-col items-center justify-center rounded-[2rem] border border-[#d9e8ef] bg-white p-7 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#245b7a] hover:shadow-md">
-                  <div className="flex h-32 w-full items-center justify-center rounded-3xl bg-[#f7fbfd] p-5">
+                <div className="group flex h-full min-h-[340px] flex-col rounded-[2rem] border border-[#d9e8ef] bg-white p-7 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#245b7a] hover:shadow-md">
+                  <div className="flex h-40 w-full items-center justify-center rounded-3xl bg-[#f7fbfd] p-6">
                     <img
                       src={sponsor.image}
                       alt={`Logo ${sponsor.name}`}
-                      className="max-h-28 max-w-full object-contain"
+                      className="max-h-24 max-w-[88%] object-contain"
                     />
                   </div>
 
-                  <h3 className="mt-6 text-xl font-bold text-[#102a3d]">
-                    {sponsor.name}
-                  </h3>
+                  <div className="flex flex-1 flex-col items-center justify-center">
+                    <h3 className="mt-6 min-h-[56px] text-xl font-bold leading-tight text-[#102a3d]">
+                      {sponsor.name}
+                    </h3>
 
-                  <p className="mt-2 text-base text-[#5f7d90]">
-                    {sponsor.role}
-                  </p>
+                    <p className="mt-2 text-base text-[#5f7d90]">
+                      {sponsor.role}
+                    </p>
+                  </div>
                 </div>
               </RevealOnScroll>
             ))}
@@ -669,8 +742,14 @@ export default function HomePage() {
         </div>
 
         <div className="border-t border-white/10 px-6 py-5 text-center text-sm text-white/50">
-          © 2026 CAMPGO — Jornada Acadêmica de Medicina. Todos os direitos
-          reservados.
+          <p>
+            © 2026 CAMPGO — Jornada Acadêmica de Medicina. Todos os direitos
+            reservados.
+          </p>
+
+          <p className="mt-2 text-xs text-white/40">
+            <CreatorCredit />
+          </p>
         </div>
       </footer>
     </main>

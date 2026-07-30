@@ -81,46 +81,43 @@ export function PublicSiteHeader({
       <div
         className={
           isScrolled
-            ? "mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 transition-all duration-300 sm:px-6 lg:px-8"
-            : "mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 transition-all duration-300 sm:px-6 lg:px-8"
+            ? "mx-auto flex h-[86px] max-w-7xl items-center justify-between gap-4 px-4 transition-all duration-300 sm:px-6 lg:h-[92px] lg:px-8"
+            : "mx-auto flex h-[126px] max-w-7xl items-center justify-between gap-4 px-4 transition-all duration-300 sm:px-6 lg:h-[132px] lg:px-8"
         }
       >
         <Link
           href="/"
           onClick={closeMenu}
-          className="flex min-w-0 items-center gap-3"
+          className="flex min-w-0 items-center gap-4 overflow-visible"
         >
           <img
-            src="/campgo-logo.png"
-            alt="Logo CAMPGO"
+            src="/logo-jornada1.png"
+            alt="Logo da Jornada Acadêmica de Medicina"
             className={
               isScrolled
-                ? "size-12 shrink-0 rounded-full object-contain drop-shadow-sm transition-all duration-300 sm:size-14"
-                : "size-14 shrink-0 rounded-full object-contain drop-shadow-md transition-all duration-300 sm:size-20"
+                ? "h-[122px] w-auto shrink-0 object-contain drop-shadow-sm transition-all duration-300 lg:h-[80px]"
+                : "h-[122px] w-auto shrink-0 object-contain drop-shadow-md transition-all duration-300 lg:h-[120px]"
             }
           />
 
-          <div className="min-w-0">
-            <p
-              className={
-                isScrolled
-                  ? "text-sm font-bold uppercase tracking-[0.28em] text-[#245b7a] transition-all duration-300 sm:text-base"
-                  : "text-base font-bold uppercase tracking-[0.35em] text-[#245b7a] transition-all duration-300 sm:text-lg"
-              }
-            >
-              CAMPGO
-            </p>
+          <span
+            className={
+              isScrolled
+                ? "h-14 w-px shrink-0 bg-[#b9d4df] transition-all duration-300"
+                : "h-20 w-px shrink-0 bg-[#b9d4df] transition-all duration-300"
+            }
+            aria-hidden="true"
+          />
 
-            <p
-              className={
-                isScrolled
-                  ? "hidden text-xs font-medium text-[#102a3d] transition-all duration-300 sm:block"
-                  : "truncate text-xs font-medium text-[#102a3d] transition-all duration-300 sm:text-sm"
-              }
-            >
-              Jornada Acadêmica de Medicina
-            </p>
-          </div>
+          <img
+            src="/logo-jornada2.png"
+            alt="Logo da IX Jornada Acadêmica de Medicina"
+            className={
+              isScrolled
+                ? "h-[74px] w-auto shrink-0 object-contain transition-all duration-300 lg:h-[80px]"
+                : "h-[112px] w-auto shrink-0 object-contain transition-all duration-300 lg:h-[120px]"
+            }
+          />
         </Link>
 
         <nav
