@@ -15,7 +15,7 @@ export function resultsAvailableEmail({
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <div style="max-width: 640px; margin: 0 auto; padding: 24px;">
         <h1 style="font-size: 24px; margin-bottom: 8px;">
-          Resultados disponíveis
+          Trabalho selecionado
         </h1>
 
         <p style="margin: 0 0 20px;">
@@ -23,14 +23,8 @@ export function resultsAvailableEmail({
         </p>
 
         <p>
-          O prazo de submissões e avaliação dos trabalhos da Jornada Acadêmica
-          de Medicina foi encerrado.
-        </p>
-
-        <p>
-          Os resultados dos trabalhos submetidos já estão disponíveis na
-          plataforma. Acesse sua área do aluno para conferir a situação do
-          trabalho e as orientações da Comissão Científica.
+          Temos a satisfação de informar que o trabalho abaixo foi selecionado
+          para apresentação na Jornada Acadêmica de Medicina.
         </p>
 
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
@@ -45,14 +39,19 @@ export function resultsAvailableEmail({
           </p>
 
           <p style="margin: 0;">
-            <strong>Resultado:</strong><br />
+            <strong>Modalidade de apresentação:</strong><br />
             ${resultLabel}
           </p>
         </div>
 
         <p>
-          Para visualizar mais detalhes, acesse a plataforma com seu login e
-          consulte a área de trabalhos submetidos.
+          Acesse a plataforma com seu login para acompanhar as orientações da
+          Comissão Científica sobre a apresentação.
+        </p>
+
+        <p>
+          Apenas os trabalhos selecionados para apresentação oral ou banner
+          recebem este aviso por e-mail.
         </p>
 
         <p style="margin-top: 24px;">

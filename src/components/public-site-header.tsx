@@ -88,17 +88,25 @@ export function PublicSiteHeader({
         <Link
           href="/"
           onClick={closeMenu}
-          className="flex min-w-0 items-center gap-4 overflow-visible"
+          className="flex h-full min-w-0 items-center gap-4 overflow-visible"
         >
-          <img
-            src="/logo-jornada1.png"
-            alt="Logo da Jornada Acadêmica de Medicina"
+          <div
             className={
               isScrolled
-                ? "h-[122px] w-auto shrink-0 object-contain drop-shadow-sm transition-all duration-300 lg:h-[80px]"
-                : "h-[122px] w-auto shrink-0 object-contain drop-shadow-md transition-all duration-300 lg:h-[120px]"
+                ? "flex h-[76px] w-[82px] shrink-0 items-center justify-center overflow-visible transition-all duration-300 lg:h-[82px] lg:w-[90px]"
+                : "flex h-[116px] w-[120px] shrink-0 items-center justify-center overflow-visible transition-all duration-300 lg:h-[124px] lg:w-[128px]"
             }
-          />
+          >
+            <img
+              src="/logo-jornada1.png"
+              alt="Logo da Jornada Acadêmica de Medicina"
+              className={
+                isScrolled
+                  ? "h-full w-auto object-contain drop-shadow-sm transition-all duration-300"
+                  : "h-full w-auto object-contain drop-shadow-md transition-all duration-300"
+              }
+            />
+          </div>
 
           <span
             className={
@@ -109,15 +117,23 @@ export function PublicSiteHeader({
             aria-hidden="true"
           />
 
-          <img
-            src="/logo-jornada2.png"
-            alt="Logo da IX Jornada Acadêmica de Medicina"
+          <div
             className={
               isScrolled
-                ? "h-[74px] w-auto shrink-0 object-contain transition-all duration-300 lg:h-[80px]"
-                : "h-[112px] w-auto shrink-0 object-contain transition-all duration-300 lg:h-[120px]"
+                ? "flex h-[76px] w-[150px] shrink-0 items-center justify-start overflow-visible transition-all duration-300 lg:h-[82px] lg:w-[170px]"
+                : "flex h-[116px] w-[210px] shrink-0 items-center justify-start overflow-visible transition-all duration-300 lg:h-[124px] lg:w-[235px]"
             }
-          />
+          >
+            <img
+              src="/logo-jornada2.png"
+              alt="Logo da IX Jornada Acadêmica de Medicina"
+              className={
+                isScrolled
+                  ? "h-full w-auto origin-left scale-125 object-contain transition-all duration-300"
+                  : "h-full w-auto origin-left scale-[1.4] object-contain transition-all duration-300"
+              }
+            />
+          </div>
         </Link>
 
         <nav
@@ -155,9 +171,13 @@ export function PublicSiteHeader({
           type="button"
           variant="outline"
           size="icon"
-          onClick={() => setIsMenuOpen((current) => !current)}
+          onClick={() =>
+            setIsMenuOpen((current) => !current)
+          }
           className="border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa] lg:hidden"
-          aria-label={isMenuOpen ? "Fechar menu" : "Abrir menu"}
+          aria-label={
+            isMenuOpen ? "Fechar menu" : "Abrir menu"
+          }
         >
           {isMenuOpen ? (
             <X className="size-5" />

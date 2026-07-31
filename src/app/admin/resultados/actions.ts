@@ -27,7 +27,7 @@ async function ensureAdmin() {
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   return {
@@ -59,12 +59,10 @@ function getFinalResultLabel(status: FinalResultStatus) {
 function getResultLabel(status: string) {
   const labels: Record<string, string> = {
     selected_oral: "Selecionado para apresentação oral",
-    selected_banner: "Selecionado para banner",
-    not_selected: "Não selecionado",
-    result_confirmed: "Resultado confirmado",
+    selected_banner: "Selecionado para apresentação em banner",
   };
 
-  return labels[status] ?? "Resultado disponível";
+  return labels[status] ?? "Selecionado";
 }
 
 function getSettingsDate(
@@ -252,7 +250,7 @@ export async function setFinalResult(formData: FormData) {
 
 export async function sendResultsAvailableEmails() {
   const { supabase } = await ensureAdmin();
-  
+
   await ensureResultsNoticeCanBeSent(supabase);
 
   const { data: submissions, error: submissionsError } =
@@ -263,6 +261,7 @@ export async function sendResultsAvailableEmails() {
         title,
         protocol,
         status,
+        ranking_position,
 
         submission_authors (
           id,
@@ -275,12 +274,15 @@ export async function sendResultsAvailableEmails() {
       .in("status", [
         "selected_oral",
         "selected_banner",
-        "not_selected",
-        "result_confirmed",
-      ]);
+      ])
+      .order("ranking_position", {
+        ascending: true,
+        nullsFirst: false,
+      })
+      .limit(40);
 
   if (submissionsError) {
-    console.error("Erro ao carregar trabalhos com resultado:", {
+    console.error("Erro ao carregar trabalhos selecionados:", {
       message: submissionsError.message,
       details: submissionsError.details,
       hint: submissionsError.hint,
@@ -289,14 +291,14 @@ export async function sendResultsAvailableEmails() {
 
     redirectWithMessage(
       "erro",
-      "Não foi possível carregar os trabalhos com resultado disponível."
+      "Não foi possível carregar os trabalhos selecionados."
     );
   }
 
   if (!submissions?.length) {
     redirectWithMessage(
       "erro",
-      "Nenhum trabalho com resultado final disponível foi encontrado."
+      "Nenhum trabalho selecionado para apresentação oral ou banner foi encontrado."
     );
   }
 
@@ -319,7 +321,7 @@ export async function sendResultsAvailableEmails() {
 
       const emailResult = await sendEmail({
         to: author.email,
-        subject: `Resultados disponíveis - ${submission.protocol ?? submission.title}`,
+        subject: `Trabalho selecionado - ${submission.protocol ?? submission.title}`,
         html: resultsAvailableEmail({
           authorName: author.full_name ?? "Autor(a)",
           title: submission.title,
@@ -350,19 +352,19 @@ export async function sendResultsAvailableEmails() {
   if (sentCount === 0) {
     redirectWithMessage(
       "erro",
-      "Nenhum e-mail de resultado foi enviado. Confira os autores cadastrados e a configuração de e-mail."
+      "Nenhum e-mail foi enviado. Confira os autores cadastrados e a configuração de e-mail."
     );
   }
 
   if (failedCount > 0) {
     redirectWithMessage(
       "sucesso",
-      `${sentCount} e-mail(s) enviados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
+      `${sentCount} e-mail(s) enviados para trabalhos selecionados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
     );
   }
 
   redirectWithMessage(
     "sucesso",
-    `${sentCount} e-mail(s) de aviso de resultado enviados com sucesso.`
+    `${sentCount} e-mail(s) enviados com sucesso para os trabalhos selecionados.`
   );
 }

@@ -437,7 +437,12 @@ function buildRankedSubmissions({
   const rankedCompletedRows = completedRows.map((row, index) => ({
     ...row,
     rank: index + 1,
-    automaticResult: index < 5 ? ("oral" as const) : ("banner" as const),
+    automaticResult:
+  index < 5
+    ? ("oral" as const)
+    : index < 40
+      ? ("banner" as const)
+      : ("pending" as const),
   }));
 
   const rankedMap = new Map(
@@ -839,7 +844,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
         <MetricCard
           label="Banner"
           value={bannerRows.length}
-          description="Classificados a partir do 6º lugar."
+          description="Trabalhos classificados do 6º ao 40º lugar."
         />
 
         <MetricCard
@@ -1275,14 +1280,14 @@ const hasSubmissionPeriodEnded = submissionEndDate
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-              A classificação é automática: os 5 trabalhos com maiores médias
-              finais são classificados para apresentação oral. Todos os demais
-              trabalhos avaliados são classificados para banner. Quando há
-              apenas duas avaliações concluídas, a nota final corresponde à
-              média das duas notas. Quando há terceiro avaliador, a nota final
-              corresponde à média aritmética das duas notas mais próximas entre
-              si. Em caso de empate entre pares igualmente próximos, considera-se
-              o par com maior média.
+              A classificação é automática: os 5 trabalhos com maiores médias finais
+              são classificados para apresentação oral. Os trabalhos classificados da
+              6ª à 40ª posição são selecionados para apresentação em banner. Os demais
+              trabalhos avaliados ficam como não selecionados. Quando há apenas duas
+              avaliações concluídas, a nota final corresponde à média das duas notas.
+              Quando há terceiro avaliador, a nota final corresponde à média aritmética
+              das duas notas mais próximas entre si. Em caso de empate entre pares
+              igualmente próximos, considera-se o par com maior média.
             </p>
           </div>
         </div>

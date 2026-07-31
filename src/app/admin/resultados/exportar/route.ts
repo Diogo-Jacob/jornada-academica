@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/lib/auth/get-current-user";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ORAL_PRESENTATION_LIMIT = 5;
+const SELECTED_PRESENTATION_LIMIT = 40;
+
 type Submission = {
   id: string;
   title: string;
@@ -246,11 +249,15 @@ function getAutomaticResultLabel(rank: number | null) {
     return "Aguardando conclusão";
   }
 
-  if (rank <= 5) {
+  if (rank <= ORAL_PRESENTATION_LIMIT) {
     return "Apresentação oral";
   }
 
-  return "Banner";
+  if (rank <= SELECTED_PRESENTATION_LIMIT) {
+    return "Banner";
+  }
+
+  return "Não selecionado";
 }
 
 function getScoresText({
@@ -346,6 +353,7 @@ function styleWorksheet(worksheet: ExcelJS.Worksheet, rowsLength: number) {
     {
       dateStyle: "short",
       timeStyle: "short",
+      timeZone: "America/Sao_Paulo",
     }
   ).format(new Date())}`;
   generatedAtCell.font = {
@@ -502,6 +510,18 @@ function styleWorksheet(worksheet: ExcelJS.Worksheet, rowsLength: number) {
           size: 11,
         };
       }
+      if (resultValue === "Não selecionado") {
+        resultCell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFFEE2E2" },
+        };
+        resultCell.font = {
+          bold: true,
+          color: { argb: "FF991B1B" },
+          size: 11,
+        };
+      }
     }
   }
 
@@ -512,7 +532,7 @@ function styleWorksheet(worksheet: ExcelJS.Worksheet, rowsLength: number) {
 
   const ruleCell = worksheet.getCell(`A${ruleRowNumber}`);
   ruleCell.value =
-    "Regra: os 5 trabalhos com maiores médias finais oficiais são classificados para apresentação oral. Os demais trabalhos avaliados são classificados para banner. Quando há terceiro avaliador, a média final considera as duas notas mais próximas.";
+    "Regra: os 5 trabalhos com maiores médias finais oficiais são classificados para apresentação oral. Os trabalhos classificados da 6ª à 40ª posição são selecionados para apresentação em banner. Os demais trabalhos avaliados ficam como não selecionados. Quando há terceiro avaliador, a média final considera as duas notas mais próximas.";
   ruleCell.font = {
     italic: true,
     color: { argb: "FF4A6678" },
@@ -565,7 +585,7 @@ export async function GET(request: Request) {
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/acesso-negado", request.url));
   }
 
   const { data: submissionsData, error: submissionsError } =
