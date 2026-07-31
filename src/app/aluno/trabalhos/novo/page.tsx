@@ -90,7 +90,7 @@ function getSubmissionPeriodStatus(event: Event | null) {
       ? `Você pode criar uma nova submissão até ${formatDateTime(
           event.submission_ends_at
         )}.`
-      : "Você pode criar uma nova submissão para esta edição.",
+      : "Você pode criar uma nova submissão para esta edição até __/__.",
   };
 }
 

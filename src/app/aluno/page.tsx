@@ -299,11 +299,6 @@ export default async function AlunoPage() {
                 label="Correções pendentes"
                 value={correctionSubmissions.length}
               />
-
-              <HeroMetric
-                label="Resultados disponíveis"
-                value={availableResults.length}
-              />
             </div>
           </div>
         </div>
@@ -322,13 +317,6 @@ export default async function AlunoPage() {
           title="Em avaliação"
           value={inEvaluationSubmissions.length}
           description="Trabalhos em análise pela comissão ou pareceristas."
-        />
-
-        <MetricCard
-          icon={<Trophy className="size-5" />}
-          title="Resultados disponíveis"
-          value={availableResults.length}
-          description="Liberados após o encerramento das submissões."
         />
       </section>
 
