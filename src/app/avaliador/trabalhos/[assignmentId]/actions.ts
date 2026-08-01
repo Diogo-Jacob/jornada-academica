@@ -265,11 +265,27 @@ export async function startEvaluation(
   const { profile, supabase, assignment } =
     await getEvaluatorAssignment(assignmentId);
 
+  if (assignment.status === "in_progress") {
+    redirectWithMessage(
+      assignmentId,
+      "sucesso",
+      "Avaliação já estava em andamento."
+    );
+  }
+
+  if (assignment.status === "completed") {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "Esta avaliação já foi concluída."
+    );
+  }
+
   if (assignment.status !== "assigned") {
     redirectWithMessage(
       assignmentId,
       "erro",
-      "Esta avaliação já foi iniciada ou não está mais pendente. Atualize a página para continuar."
+      "Esta avaliação não está mais pendente. Atualize a página para continuar."
     );
   }
 
@@ -286,11 +302,16 @@ export async function startEvaluation(
           })
           .eq("id", assignmentId)
           .eq("evaluator_id", profile.id)
-          .eq("status", "assigned"),
-      "A tentativa de iniciar a avaliação demorou mais que o esperado."
+          .eq("status", "assigned")
+          .select("id, status")
+          .maybeSingle(),
+      "A tentativa de iniciar a avaliação demorou mais que o esperado.",
+      15_000
     );
   } catch (error) {
     console.error("Timeout ao iniciar avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message:
         error instanceof Error
           ? error.message
@@ -307,6 +328,8 @@ export async function startEvaluation(
 
   if (result.error) {
     console.error("Erro ao iniciar avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message: result.error.message,
       details: result.error.details,
       hint: result.error.hint,
@@ -320,8 +343,13 @@ export async function startEvaluation(
     );
   }
 
-  revalidatePath("/avaliador");
-  revalidatePath(`/avaliador/trabalhos/${assignmentId}`);
+  if (!result.data) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A avaliação não pôde ser iniciada porque ela já foi alterada. Atualize a página e tente novamente."
+    );
+  }
 
   redirectWithMessage(
     assignmentId,

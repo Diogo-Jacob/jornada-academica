@@ -241,8 +241,40 @@ export default async function AvaliadorTrabalhoPage({
       file.is_current
   );
 
-  const { data: criteria, error: criteriaError } =
-    await supabase
+ const canStart = assignment.status === "assigned";
+
+  const canDecline = assignment.status === "assigned";
+
+  const canShowEvaluationForm = [
+    "in_progress",
+    "completed",
+  ].includes(assignment.status);
+
+  let criteria: {
+    id: string;
+    name: string;
+    description: string | null;
+    max_score: number;
+    display_order: number;
+  }[] = [];
+
+  let scoreOptions: {
+    id: string;
+    label: string;
+    percentage: number;
+  }[] = [];
+
+  let responses: {
+    criterion_id: string;
+    score_option_id: string;
+    score: number;
+  }[] = [];
+
+  if (canShowEvaluationForm) {
+    const {
+      data: criteriaData,
+      error: criteriaError,
+    } = await supabase
       .from("evaluation_criteria")
       .select(`
         id,
@@ -257,20 +289,24 @@ export default async function AvaliadorTrabalhoPage({
         ascending: true,
       });
 
-  if (criteriaError) {
-    console.error(
-      "Erro ao carregar critérios da avaliação:",
-      {
-        message: criteriaError.message,
-        details: criteriaError.details,
-        hint: criteriaError.hint,
-        code: criteriaError.code,
-      }
-    );
-  }
+    if (criteriaError) {
+      console.error(
+        "Erro ao carregar critérios da avaliação:",
+        {
+          message: criteriaError.message,
+          details: criteriaError.details,
+          hint: criteriaError.hint,
+          code: criteriaError.code,
+        }
+      );
+    }
 
-  const { data: scoreOptions, error: scoreOptionsError } =
-    await supabase
+    criteria = criteriaData ?? [];
+
+    const {
+      data: scoreOptionsData,
+      error: scoreOptionsError,
+    } = await supabase
       .from("evaluation_score_options")
       .select(`
         id,
@@ -282,20 +318,24 @@ export default async function AvaliadorTrabalhoPage({
         ascending: false,
       });
 
-  if (scoreOptionsError) {
-    console.error(
-      "Erro ao carregar opções de pontuação:",
-      {
-        message: scoreOptionsError.message,
-        details: scoreOptionsError.details,
-        hint: scoreOptionsError.hint,
-        code: scoreOptionsError.code,
-      }
-    );
-  }
+    if (scoreOptionsError) {
+      console.error(
+        "Erro ao carregar opções de pontuação:",
+        {
+          message: scoreOptionsError.message,
+          details: scoreOptionsError.details,
+          hint: scoreOptionsError.hint,
+          code: scoreOptionsError.code,
+        }
+      );
+    }
 
-  const { data: responses, error: responsesError } =
-    await supabase
+    scoreOptions = scoreOptionsData ?? [];
+
+    const {
+      data: responsesData,
+      error: responsesError,
+    } = await supabase
       .from("evaluation_responses")
       .select(`
         criterion_id,
@@ -304,30 +344,24 @@ export default async function AvaliadorTrabalhoPage({
       `)
       .eq("assignment_id", assignment.id);
 
-  if (responsesError) {
-    console.error(
-      "Erro ao carregar respostas existentes:",
-      {
-        message: responsesError.message,
-        details: responsesError.details,
-        hint: responsesError.hint,
-        code: responsesError.code,
-      }
-    );
+    if (responsesError) {
+      console.error(
+        "Erro ao carregar respostas existentes:",
+        {
+          message: responsesError.message,
+          details: responsesError.details,
+          hint: responsesError.hint,
+          code: responsesError.code,
+        }
+      );
+    }
+
+    responses = responsesData ?? [];
   }
 
   function getDownloadUrl(fileId: string) {
     return `/avaliador/trabalhos/${assignmentId}/arquivos/${fileId}`;
   }
-
-  const canStart = assignment.status === "assigned";
-
-  const canDecline = assignment.status === "assigned";
-
-  const canShowEvaluationForm = [
-    "in_progress",
-    "completed",
-  ].includes(assignment.status);
 
   return (
     <div className="min-h-screen bg-[#f7fbfd] text-[#102a3d]">
@@ -589,9 +623,9 @@ export default async function AvaliadorTrabalhoPage({
             <EvaluationForm
               assignmentId={assignment.id}
               assignmentStatus={assignment.status}
-              criteria={criteria ?? []}
-              scoreOptions={scoreOptions ?? []}
-              responses={responses ?? []}
+              criteria={criteria}
+              scoreOptions={scoreOptions}
+              responses={responses}
             />
           </div>
         )}
