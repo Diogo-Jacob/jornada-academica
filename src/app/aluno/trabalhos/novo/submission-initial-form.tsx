@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   AlertCircle,
   ArrowRight,
   FileCheck2,
+  Loader2,
   ShieldCheck,
   Upload,
   Users,
@@ -14,8 +16,6 @@ import { createSubmission } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFormStatus } from "react-dom";
-import { Loader2 } from "lucide-react";
 
 const MIN_TOTAL_AUTHORS = 2;
 const MAX_TOTAL_AUTHORS = 7;
@@ -56,6 +56,17 @@ export function SubmissionInitialForm({
     (category) => category.id === categoryId
   );
 
+  const isCaseReport =
+    selectedCategory?.name
+      ?.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .includes("relato de caso") ?? false;
+
+  const effectiveEthicsAnswer = isCaseReport
+    ? "yes"
+    : ethicsAnswer;
+
   const totalAuthorsNumber =
     Number(totalAuthors) || 2;
 
@@ -65,7 +76,7 @@ export function SubmissionInitialForm({
   const canSubmit =
     categories.length > 0 &&
     Boolean(categoryId) &&
-    Boolean(ethicsAnswer) &&
+    Boolean(effectiveEthicsAnswer) &&
     acceptedGeneralTerms &&
     acceptedEthicsTerms;
 
@@ -74,6 +85,11 @@ export function SubmissionInitialForm({
       action={createSubmission}
       className="space-y-8"
     >
+      <input
+        type="hidden"
+        name="forcedRequiresEthicsApproval"
+        value={isCaseReport ? "yes" : ""}
+      />
       <section className="space-y-5">
         <SectionHeader
           icon={<FileCheck2 className="size-5" />}
@@ -115,9 +131,25 @@ export function SubmissionInitialForm({
             id="categoryId"
             name="categoryId"
             value={categoryId}
-            onChange={(event) =>
-              setCategoryId(event.target.value)
-            }
+            onChange={(event) => {
+              const nextCategoryId = event.target.value;
+              const nextCategory = categories.find(
+                (category) => category.id === nextCategoryId
+              );
+
+              const nextIsCaseReport =
+                nextCategory?.name
+                  ?.toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .includes("relato de caso") ?? false;
+
+              setCategoryId(nextCategoryId);
+
+              if (nextIsCaseReport) {
+                setEthicsAnswer("yes");
+              }
+            }}
             className="flex h-11 w-full rounded-md border border-[#d9e8ef] bg-white px-3 py-2 text-sm text-[#102a3d] outline-none transition focus:border-[#245b7a] focus:ring-4 focus:ring-[#245b7a]/10"
             required
           >
@@ -161,7 +193,7 @@ export function SubmissionInitialForm({
           <OptionBox
             name="requiresEthicsApproval"
             value="yes"
-            checked={ethicsAnswer === "yes"}
+            checked={effectiveEthicsAnswer=== "yes"}
             onChange={(value) => setEthicsAnswer(value)}
             title="Sim, necessita de aprovação do CEP"
             description="Será obrigatório anexar o parecer consubstanciado de aprovação."
@@ -170,14 +202,28 @@ export function SubmissionInitialForm({
           <OptionBox
             name="requiresEthicsApproval"
             value="no"
-            checked={ethicsAnswer === "no"}
-            onChange={(value) => setEthicsAnswer(value)}
+            checked={effectiveEthicsAnswer === "no"}
+            onChange={(value) => {
+              if (isCaseReport) {
+                return;
+              }
+
+              setEthicsAnswer(value);
+            }}
+            disabled={isCaseReport}
             title="Não necessita de aprovação do CEP"
             description="Declaro que, conforme a natureza do estudo e as disposições do edital, a apreciação pelo CEP não é aplicável."
           />
         </fieldset>
 
-        {ethicsAnswer === "yes" && (
+        {isCaseReport && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            Para trabalhos da categoria <strong>Relato de caso</strong>, o parecer
+            consubstanciado de aprovação do CEP é obrigatório.
+          </div>
+        )}
+
+        {effectiveEthicsAnswer === "yes" && (
           <div className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50 p-5">
             <div className="flex gap-3 text-sm text-amber-900">
               <AlertCircle className="mt-0.5 size-5 shrink-0" />
@@ -209,7 +255,7 @@ export function SubmissionInitialForm({
                 type="file"
                 accept=".pdf,application/pdf"
                 className="border-amber-200 bg-white"
-                required={ethicsAnswer === "yes"}
+                required={effectiveEthicsAnswer === "yes"}
               />
 
               <p className="text-xs text-amber-800">
@@ -400,6 +446,7 @@ type OptionBoxProps = {
   title: string;
   description: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 };
 
 function OptionBox({
@@ -409,13 +456,18 @@ function OptionBox({
   title,
   description,
   onChange,
+  disabled = false,
 }: OptionBoxProps) {
   return (
     <label
       className={
         checked
-          ? "flex cursor-pointer items-start gap-3 rounded-3xl border border-[#245b7a] bg-[#eef7fa] p-5 transition duration-300"
-          : "flex cursor-pointer items-start gap-3 rounded-3xl border border-[#d9e8ef] bg-white p-5 transition duration-300 hover:border-[#b9d4df] hover:bg-[#f7fbfd]"
+          ? `flex items-start gap-3 rounded-3xl border border-[#245b7a] bg-[#eef7fa] p-5 transition duration-300 ${
+              disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+            }`
+          : `flex items-start gap-3 rounded-3xl border border-[#d9e8ef] bg-white p-5 transition duration-300 hover:border-[#b9d4df] hover:bg-[#f7fbfd] ${
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            }`
       }
     >
       <input
@@ -426,7 +478,8 @@ function OptionBox({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="mt-1 size-4 accent-[#245b7a]"
+        disabled={disabled}
+        className="mt-1 size-4 accent-[#245b7a] disabled:cursor-not-allowed"
         required
       />
 

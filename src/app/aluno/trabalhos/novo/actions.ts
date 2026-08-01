@@ -73,6 +73,15 @@ function validateSubmissionPeriod(event: {
   }
 }
 
+function normalizeText(value: string | null | undefined) {
+  return (
+    value
+      ?.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") ?? ""
+  );
+}
+
 export async function createSubmission(formData: FormData) {
   const title = String(
     formData.get("title") ?? ""
@@ -84,6 +93,10 @@ export async function createSubmission(formData: FormData) {
 
   const ethicsAnswer = String(
     formData.get("requiresEthicsApproval") ?? ""
+  ).trim();
+
+  const forcedRequiresEthicsApproval = String(
+    formData.get("forcedRequiresEthicsApproval") ?? ""
   ).trim();
 
   const totalAuthors = Number(
@@ -117,7 +130,8 @@ export async function createSubmission(formData: FormData) {
 
   if (
     ethicsAnswer !== "yes" &&
-    ethicsAnswer !== "no"
+    ethicsAnswer !== "no" &&
+    forcedRequiresEthicsApproval !== "yes"
   ) {
     redirectWithError(
       "Informe se o trabalho necessita de aprovação do Comitê de Ética em Pesquisa."
@@ -144,32 +158,6 @@ export async function createSubmission(formData: FormData) {
     redirectWithError(
       "É necessário aceitar a declaração referente aos aspectos éticos da pesquisa."
     );
-  }
-
-  const requiresEthicsApproval =
-    ethicsAnswer === "yes";
-
-  let ethicsApprovalFile: File | null = null;
-
-  if (requiresEthicsApproval) {
-    if (
-      !(ethicsApprovalFileValue instanceof File) ||
-      ethicsApprovalFileValue.size === 0
-    ) {
-      redirectWithError(
-        "Anexe o parecer consubstanciado de aprovação do Comitê de Ética em Pesquisa."
-      );
-    }
-
-    const fileError = await validatePdfFile(
-      ethicsApprovalFileValue
-    );
-
-    if (fileError) {
-      redirectWithError(fileError);
-    }
-
-    ethicsApprovalFile = ethicsApprovalFileValue;
   }
 
   const supabase = await createClient();
@@ -240,7 +228,7 @@ export async function createSubmission(formData: FormData) {
     error: categoryError,
   } = await supabase
     .from("submission_categories")
-    .select("id")
+    .select("id, name")
     .eq("id", categoryId)
     .eq("event_id", event.id)
     .eq("is_active", true)
@@ -250,6 +238,41 @@ export async function createSubmission(formData: FormData) {
     redirectWithError(
       "A categoria selecionada não é válida."
     );
+  }
+
+  const normalizedCategoryName = normalizeText(category.name);
+
+  const isCaseReport =
+    normalizedCategoryName.includes("relato de caso");
+
+  const requiresEthicsApproval =
+    isCaseReport ||
+    ethicsAnswer === "yes" ||
+    forcedRequiresEthicsApproval === "yes";
+
+  let ethicsApprovalFile: File | null = null;
+
+  if (requiresEthicsApproval) {
+    if (
+      !(ethicsApprovalFileValue instanceof File) ||
+      ethicsApprovalFileValue.size === 0
+    ) {
+      redirectWithError(
+        isCaseReport
+          ? "Para trabalhos da categoria Relato de caso, é obrigatório anexar o parecer consubstanciado de aprovação do Comitê de Ética em Pesquisa."
+          : "Anexe o parecer consubstanciado de aprovação do Comitê de Ética em Pesquisa."
+      );
+    }
+
+    const fileError = await validatePdfFile(
+      ethicsApprovalFileValue
+    );
+
+    if (fileError) {
+      redirectWithError(fileError);
+    }
+
+    ethicsApprovalFile = ethicsApprovalFileValue;
   }
 
   const acceptedAt = new Date().toISOString();
