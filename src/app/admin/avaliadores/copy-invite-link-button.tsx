@@ -14,15 +14,18 @@ export function CopyInviteLinkButton({
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(link);
+    try {
+      await navigator.clipboard.writeText(link);
 
-    setCopied(true);
+      setCopied(true);
 
-    window.setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Erro ao copiar link do avaliador:", error);
+    }
   }
-
   return (
     <Button
       type="button"

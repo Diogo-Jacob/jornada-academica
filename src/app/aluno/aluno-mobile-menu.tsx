@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -48,6 +48,24 @@ export function AlunoMobileMenu() {
     setIsOpen(false);
   }
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   return (
     <div className="lg:hidden">
       <Button
@@ -57,6 +75,8 @@ export function AlunoMobileMenu() {
         onClick={() => setIsOpen((current) => !current)}
         className="border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa]"
         aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+        aria-expanded={isOpen}
+        aria-controls="aluno-mobile-menu"
       >
         {isOpen ? (
           <X className="size-5" />
@@ -66,44 +86,57 @@ export function AlunoMobileMenu() {
       </Button>
 
       {isOpen && (
-        <div className="fixed inset-x-4 top-24 z-50 overflow-hidden rounded-[1.75rem] border border-[#d9e8ef] bg-white shadow-xl shadow-[#102a3d]/10">
-          <div className="border-b border-[#d9e8ef] bg-[#f7fbfd] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#245b7a]">
-              Navegação
-            </p>
+        <>
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            onClick={closeMenu}
+            className="fixed inset-0 z-40 bg-[#102a3d]/20 backdrop-blur-[1px]"
+          />
 
-            <p className="mt-1 text-sm leading-6 text-[#5f7d90]">
-              Acesse suas submissões e informações do perfil.
-            </p>
+          <div
+            id="aluno-mobile-menu"
+            className="fixed inset-x-4 top-24 z-50 overflow-hidden rounded-[1.75rem] border border-[#d9e8ef] bg-white shadow-xl shadow-[#102a3d]/10"
+          >
+            <div className="border-b border-[#d9e8ef] bg-[#f7fbfd] p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#245b7a]">
+                Navegação
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-[#5f7d90]">
+                Acesse suas submissões e informações do perfil.
+              </p>
+            </div>
+
+            <nav className="space-y-1 p-3">
+              {items.map((item) => {
+                const Icon = item.icon;
+
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenu}
+                    aria-current={isActive ? "page" : undefined}
+                    className={
+                      isActive
+                        ? "flex items-center gap-3 rounded-2xl bg-[#245b7a] px-4 py-3 text-sm font-medium text-white"
+                        : "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-[#245b7a] transition hover:bg-[#eef7fa]"
+                    }
+                  >
+                    <Icon className="size-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-
-          <nav className="space-y-1 p-3">
-            {items.map((item) => {
-              const Icon = item.icon;
-
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={closeMenu}
-                  className={
-                    isActive
-                      ? "flex items-center gap-3 rounded-2xl bg-[#245b7a] px-4 py-3 text-sm font-medium text-white"
-                      : "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-[#245b7a] transition hover:bg-[#eef7fa]"
-                  }
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
+        </>
       )}
     </div>
   );

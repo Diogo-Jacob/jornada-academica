@@ -143,7 +143,7 @@ export default async function AdminAvaliacoesPage({
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: submissions, error: submissionsError } =
@@ -187,6 +187,17 @@ export default async function AdminAvaliacoesPage({
     );
   }
 
+  const submissionList =
+    (submissions ?? []) as Submission[];
+
+  const submissionIds = Array.from(
+    new Set(
+      submissionList.map(
+        (submission) => submission.id
+      )
+    )
+  );
+
   const { data: evaluators, error: evaluatorsError } =
     await supabase
       .from("profiles")
@@ -204,35 +215,38 @@ export default async function AdminAvaliacoesPage({
     );
   }
 
-  const { data: assignments, error: assignmentsError } =
-    await supabase
-      .from("evaluation_assignments")
-      .select(`
-        id,
-        submission_id,
-        evaluator_id,
-        status
-      `)
-      .in("status", [
-        "assigned",
-        "in_progress",
-        "completed",
-        "declined",
-        "cancelled",
-      ]);
-
-  if (assignmentsError) {
-    console.error(
-      "Erro ao carregar atribuições:",
-      assignmentsError
-    );
-  }
-
-  const submissionList =
-    (submissions ?? []) as Submission[];
-
   const evaluatorList = (evaluators ?? []) as Evaluator[];
-  const assignmentList = (assignments ?? []) as Assignment[];
+
+  let assignmentList: Assignment[] = [];
+
+  if (submissionIds.length > 0) {
+    const { data: assignments, error: assignmentsError } =
+      await supabase
+        .from("evaluation_assignments")
+        .select(`
+          id,
+          submission_id,
+          evaluator_id,
+          status
+        `)
+        .in("submission_id", submissionIds)
+        .in("status", [
+          "assigned",
+          "in_progress",
+          "completed",
+          "declined",
+          "cancelled",
+        ]);
+
+    if (assignmentsError) {
+      console.error(
+        "Erro ao carregar atribuições:",
+        assignmentsError
+      );
+    }
+
+    assignmentList = (assignments ?? []) as Assignment[];
+  }
 
   const evaluatorMap = new Map(
     evaluatorList.map((evaluator) => [
@@ -240,6 +254,23 @@ export default async function AdminAvaliacoesPage({
       evaluator,
     ])
   );
+
+  const assignmentsBySubmission = new Map<
+    string,
+    Assignment[]
+  >();
+
+  for (const assignment of assignmentList) {
+    const current =
+      assignmentsBySubmission.get(assignment.submission_id) ?? [];
+
+    current.push(assignment);
+
+    assignmentsBySubmission.set(
+      assignment.submission_id,
+      current
+    );
+  }
 
   const pendingDistribution =
     submissionList.filter(
@@ -482,10 +513,7 @@ export default async function AdminAvaliacoesPage({
                 );
 
                 const submissionAssignments =
-                  assignmentList.filter(
-                    (assignment) =>
-                      assignment.submission_id === submission.id
-                  );
+                  assignmentsBySubmission.get(submission.id) ?? [];
 
                 const activeOrHistoricEvaluatorIds =
                   new Set(
@@ -685,7 +713,7 @@ export default async function AdminAvaliacoesPage({
                                       !availableNewEvaluators.length
                                     }
                                   >
-                                    <UserPlus />
+                                    <UserPlus className="size-4" />
                                     Atribuir substituto
                                   </Button>
                                 </div>
@@ -745,7 +773,7 @@ export default async function AdminAvaliacoesPage({
                               !availableNewEvaluators.length
                             }
                           >
-                            <UserPlus />
+                            <UserPlus className="size-4" />
                             Atribuir terceiro avaliador
                           </Button>
                         </div>
@@ -805,7 +833,7 @@ export default async function AdminAvaliacoesPage({
                               className="bg-[#245b7a] hover:bg-[#173f59]"
                               disabled={evaluatorList.length < 2}
                             >
-                              <Send />
+                              <Send className="size-4" />
                               Distribuir para avaliação
                             </Button>
                           </div>

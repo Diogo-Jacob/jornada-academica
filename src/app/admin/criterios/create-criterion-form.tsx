@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, PlusCircle } from "lucide-react";
+import { useFormStatus } from "react-dom";
+import {
+  Loader2,
+  Minus,
+  Plus,
+  PlusCircle,
+} from "lucide-react";
 import { createCriterion } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +72,7 @@ function DecimalScoreInput({
         type="button"
         variant="ghost"
         size="icon"
+        aria-label="Diminuir pontuação máxima"
         className="h-11 rounded-none text-[#245b7a] hover:bg-[#eef7fa] hover:text-[#173f59]"
         onClick={() => changeByStep(-1)}
       >
@@ -107,12 +114,37 @@ function DecimalScoreInput({
         type="button"
         variant="ghost"
         size="icon"
+        aria-label="Aumentar pontuação máxima"
         className="h-11 rounded-none text-[#245b7a] hover:bg-[#eef7fa] hover:text-[#173f59]"
         onClick={() => changeByStep(1)}
       >
         <Plus className="size-4" />
       </Button>
     </div>
+  );
+}
+
+function CreateCriterionButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      disabled={pending}
+      className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59] disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          Criando critério...
+        </>
+      ) : (
+        <>
+          <PlusCircle className="size-4" />
+          Criar critério
+        </>
+      )}
+    </Button>
   );
 }
 
@@ -161,13 +193,7 @@ export function CreateCriterionForm() {
         </div>
 
         <div className="flex items-end">
-          <Button
-            type="submit"
-            className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
-          >
-            <PlusCircle className="size-4" />
-            Criar critério
-          </Button>
+          <CreateCriterionButton />
         </div>
       </div>
 

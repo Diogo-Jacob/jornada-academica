@@ -12,8 +12,6 @@ type Submission = {
   id: string;
   title: string;
   protocol: string | null;
-  status: string;
-  updated_at: string;
   submission_categories:
     | {
         name: string;
@@ -595,8 +593,6 @@ export async function GET(request: Request) {
         id,
         title,
         protocol,
-        status,
-        updated_at,
 
         submission_categories (
           name
@@ -642,7 +638,11 @@ export async function GET(request: Request) {
 
   const submissions = (submissionsData ?? []) as Submission[];
 
-  const submissionIds = submissions.map((submission) => submission.id);
+  const submissionIds = Array.from(
+    new Set(
+      submissions.map((submission) => submission.id)
+    )
+  );
 
   let assignments: Assignment[] = [];
 
@@ -725,7 +725,11 @@ export async function GET(request: Request) {
     evaluators.map((evaluator) => [evaluator.id, evaluator])
   );
 
-  const assignmentIds = assignments.map((assignment) => assignment.id);
+  const assignmentIds = Array.from(
+    new Set(
+      assignments.map((assignment) => assignment.id)
+    )
+  );
 
   let responses: EvaluationResponse[] = [];
 

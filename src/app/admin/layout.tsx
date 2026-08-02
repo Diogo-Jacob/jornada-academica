@@ -7,9 +7,10 @@ import { signOutAdmin } from "./actions";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { CreatorCredit } from "@/components/creator-credit";
+import type { ReactNode } from "react";
 
 type AdminLayoutProps = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default async function AdminLayout({

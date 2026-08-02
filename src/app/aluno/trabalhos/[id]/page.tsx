@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   CorrectionConfirmationPanel,
@@ -32,7 +33,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 import {
@@ -136,8 +136,7 @@ export default async function TrabalhoPage({
   const { id } = await params;
   const messages = await searchParams;
 
-  const { profile } = await getCurrentUser();
-  const supabase = await createClient();
+  const { profile, supabase } = await getCurrentUser();
 
   const { data: submission, error } = await supabase
     .from("submissions")
@@ -200,8 +199,7 @@ export default async function TrabalhoPage({
   );
 
   const responsibleAuthor = authors.find(
-    (author) =>
-      author.author_role === "responsible"
+    (author) => author.author_role === "responsible"
   );
 
   const authorsByPosition = new Map(
@@ -266,7 +264,11 @@ export default async function TrabalhoPage({
 
   const displayedStatus =
     !canShowFinalResult &&
-    ["selected_oral", "selected_banner"].includes(submission.status)
+    [
+      "selected_oral",
+      "selected_banner",
+      "not_selected",
+    ].includes(submission.status)
       ? "evaluations_completed"
       : submission.status;
 
@@ -278,7 +280,7 @@ export default async function TrabalhoPage({
         asChild
       >
         <Link href="/aluno/trabalhos">
-          <ArrowLeft />
+          <ArrowLeft className="size-4" />
           Voltar para meus trabalhos
         </Link>
       </Button>
@@ -593,21 +595,10 @@ export default async function TrabalhoPage({
 
                   <div className="mt-4 flex flex-wrap gap-3">
                     {ethicsFile && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                      >
-                        <Link
-                          href={getDownloadUrl(
-                            ethicsFile.id
-                          )}
-                        >
-                          <Download />
-                          Baixar parecer do CEP
-                        </Link>
-                      </Button>
+                      <DownloadFileLink
+                        href={getDownloadUrl(ethicsFile.id)}
+                        label="Baixar parecer do CEP"
+                      />
                     )}
                   </div>
 
@@ -701,21 +692,13 @@ export default async function TrabalhoPage({
                 />
 
                 {advisorDeclaration && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                    asChild
-                  >
-                    <Link
-                      href={getDownloadUrl(
-                        advisorDeclaration.id
-                      )}
-                    >
-                      <Download />
-                      Baixar declaração
-                    </Link>
-                  </Button>
+                  <DownloadFileLink
+                    href={getDownloadUrl(
+                      advisorDeclaration.id
+                    )}
+                    label="Baixar declaração"
+                    className="mt-4"
+                  />
                 )}
               </div>
 
@@ -802,21 +785,11 @@ export default async function TrabalhoPage({
               />
 
               {identifiedFile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                  asChild
-                >
-                  <Link
-                    href={getDownloadUrl(
-                      identifiedFile.id
-                    )}
-                  >
-                    <Download />
-                    Baixar versão identificada
-                  </Link>
-                </Button>
+                <DownloadFileLink
+                  href={getDownloadUrl(identifiedFile.id)}
+                  label="Baixar versão identificada"
+                  className="mt-4"
+                />
               )}
             </div>
 
@@ -839,21 +812,11 @@ export default async function TrabalhoPage({
               />
 
               {anonymousFile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 border-[#b9d4df] text-[#245b7a] hover:bg-[#eef7fa]"
-                  asChild
-                >
-                  <Link
-                    href={getDownloadUrl(
-                      anonymousFile.id
-                    )}
-                  >
-                    <Download />
-                    Baixar versão anonimizada
-                  </Link>
-                </Button>
+                <DownloadFileLink
+                  href={getDownloadUrl(anonymousFile.id)}
+                  label="Baixar versão anonimizada"
+                  className="mt-4"
+                />
               )}
             </div>
 
@@ -1041,6 +1004,30 @@ export default async function TrabalhoPage({
   );
 }
 
+type DownloadFileLinkProps = {
+  href: string;
+  label: string;
+  className?: string;
+};
+
+function DownloadFileLink({
+  href,
+  label,
+  className = "",
+}: DownloadFileLinkProps) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#b9d4df] bg-white px-3 text-sm font-medium text-[#245b7a] transition-colors hover:bg-[#eef7fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#245b7a]/30 ${className}`}
+    >
+      <Download className="size-4" />
+      {label}
+    </a>
+  );
+}
+
 type HeroInfoProps = {
   label: string;
   value: number | string;
@@ -1142,7 +1129,7 @@ function FileStatus({
 }
 
 type UploadFormWrapperProps = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 function UploadFormWrapper({

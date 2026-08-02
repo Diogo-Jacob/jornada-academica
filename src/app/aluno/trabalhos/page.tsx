@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { DeleteDraftButton } from "./delete-draft-button";
 import { formatDateTimeBR } from "@/lib/formatters/date";
@@ -84,7 +83,11 @@ function formatStudentStatus(
 ) {
   if (
     !canShowResult &&
-    ["selected_oral", "selected_banner"].includes(status)
+    [
+      "selected_oral",
+      "selected_banner",
+      "not_selected",
+    ].includes(status)
   ) {
     return "Avaliações concluídas";
   }
@@ -117,7 +120,11 @@ function getStudentStatusClass(
 ) {
   if (
     !canShowResult &&
-    ["selected_oral", "selected_banner"].includes(status)
+    [
+      "selected_oral",
+      "selected_banner",
+      "not_selected",
+    ].includes(status)
   ) {
     return "border-[#b9d4df] bg-[#eef7fa] text-[#245b7a]";
   }
@@ -168,8 +175,7 @@ export default async function TrabalhosPage({
 }: TrabalhosPageProps) {
   const messages = await searchParams;
 
-  const { profile } = await getCurrentUser();
-  const supabase = await createClient();
+  const { profile, supabase } = await getCurrentUser();
 
   const { data: submissions, error } = await supabase
     .from("submissions")
@@ -209,6 +215,10 @@ export default async function TrabalhosPage({
     (submission) => submission.status === "draft"
   ).length;
 
+  const firstDraft = submissionList.find(
+    (submission) => submission.status === "draft"
+  );
+
   const correctionCount = submissionList.filter(
     (submission) =>
       submission.status === "correction_requested"
@@ -246,7 +256,7 @@ export default async function TrabalhosPage({
             className="w-full bg-white text-[#102a3d] hover:bg-[#e9f4f8] sm:w-auto"
           >
             <Link href="/aluno/trabalhos/novo">
-              <PlusCircle />
+              <PlusCircle className="size-4" />
               Nova submissão
             </Link>
           </Button>
@@ -307,7 +317,7 @@ export default async function TrabalhosPage({
               className="bg-[#245b7a] hover:bg-[#173f59]"
             >
               <Link href="/aluno/trabalhos/novo">
-                <PlusCircle />
+                <PlusCircle className="size-4" />
                 Criar nova submissão
               </Link>
             </Button>
@@ -335,7 +345,7 @@ export default async function TrabalhosPage({
                   asChild
                 >
                   <Link href="/aluno/trabalhos/novo">
-                    <PlusCircle />
+                    <PlusCircle className="size-4" />
                     Criar nova submissão
                   </Link>
                 </Button>
@@ -405,7 +415,7 @@ export default async function TrabalhosPage({
                               href={`/aluno/trabalhos/${submission.id}`}
                             >
                               Abrir
-                              <ArrowRight />
+                              <ArrowRight className="size-4" />
                             </Link>
                           </Button>
 
@@ -445,14 +455,17 @@ export default async function TrabalhosPage({
               </p>
             </div>
 
-            <Button
-              asChild
-              className="bg-[#245b7a] hover:bg-[#173f59]"
-            >
-              <Link href="/aluno/trabalhos">
-                Continuar depois
-              </Link>
-            </Button>
+            {firstDraft && (
+              <Button
+                asChild
+                className="bg-[#245b7a] hover:bg-[#173f59]"
+              >
+                <Link href={`/aluno/trabalhos/${firstDraft.id}`}>
+                  Continuar rascunho
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            )}
           </div>
         </section>
       )}

@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ReactNode } from "react";
 import {
   FileText,
   Home,
@@ -20,25 +21,21 @@ const navItems = [
     href: "/aluno",
     label: "Início",
     icon: Home,
-    exact: true,
   },
   {
     href: "/aluno/trabalhos",
     label: "Meus trabalhos",
     icon: FileText,
-    exact: false,
   },
   {
     href: "/aluno/trabalhos/novo",
     label: "Nova submissão",
     icon: PlusCircle,
-    exact: true,
   },
   {
     href: "/aluno/perfil",
     label: "Meu perfil",
     icon: UserRound,
-    exact: true,
   },
 ];
 
@@ -59,10 +56,13 @@ export default async function AlunoLayout({
             href="/aluno"
             className="flex min-w-0 items-center gap-3"
           >
-            <img
+            <Image
               src="/campgo-logo.png"
               alt="Logo CAMPGO"
+              width={56}
+              height={56}
               className="size-12 shrink-0 rounded-full object-contain drop-shadow-sm sm:size-14"
+              priority
             />
 
             <div className="min-w-0">
@@ -116,7 +116,7 @@ export default async function AlunoLayout({
       </main>
 
       <footer className="border-t border-[#d9e8ef] bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-center text-xs text-[#5f7d90] sm:px-6 lg:px-8 md:flex-row md:items-center md:justify-between md:text-left">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-center text-xs text-[#5f7d90] sm:px-6 md:flex-row md:items-center md:justify-between md:text-left lg:px-8">
           <p>
             © 2026 CAMPGO — Jornada Acadêmica de Medicina.
           </p>

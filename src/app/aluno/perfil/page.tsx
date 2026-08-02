@@ -1,10 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   CheckCircle2,
   KeyRound,
-  LogOut,
   Mail,
-  Save,
   ShieldCheck,
   Stethoscope,
   UserRound,
@@ -14,6 +13,10 @@ import { updateProfileName } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import {
+  SaveProfileButton,
+  SignOutButton,
+} from "./profile-action-buttons";
 
 type ProfilePageProps = {
   searchParams: Promise<{
@@ -116,13 +119,7 @@ export default async function Page({
                     required
                   />
 
-                  <Button
-                    type="submit"
-                    className="h-11 shrink-0 bg-[#245b7a] hover:bg-[#173f59]"
-                  >
-                    <Save className="size-4" />
-                    Salvar
-                  </Button>
+                  <SaveProfileButton />
                 </form>
               </div>
             </div>
@@ -188,13 +185,7 @@ export default async function Page({
           </div>
 
           <form action={signOut}>
-            <Button
-              type="submit"
-              variant="destructive"
-            >
-              <LogOut className="size-4" />
-              Sair da conta
-            </Button>
+            <SignOutButton />
           </form>
         </div>
       </section>
@@ -203,7 +194,7 @@ export default async function Page({
 }
 
 type ProfileInfoCardProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string | null;
 };

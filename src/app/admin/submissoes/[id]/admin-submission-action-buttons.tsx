@@ -26,7 +26,7 @@ export function StartDocumentReviewButton() {
         </>
       ) : (
         <>
-          <PlayCircle />
+          <PlayCircle className="size-4" />
           Iniciar conferência documental
         </>
       )}

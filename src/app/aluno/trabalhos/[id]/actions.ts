@@ -21,7 +21,33 @@ const DOCX_MIME_TYPE =
 
 const PDF_MIME_TYPE = "application/pdf";
 
+const ACTION_TIMEOUT_MS = 45_000;
+const DATABASE_TIMEOUT_MS = 20_000;
 const UPLOAD_TIMEOUT_MS = 45_000;
+const EMAIL_TIMEOUT_MS = 15_000;
+
+type SupabaseClient = Awaited<
+  ReturnType<typeof getCurrentUser>
+>["supabase"];
+
+type SubmissionFileType =
+  | "identified"
+  | "anonymous"
+  | "ethics_approval"
+  | "advisor_declaration";
+
+type FileReplacementRecord = {
+  storagePath: string;
+  newFileId: string;
+  previousFileId: string | null;
+};
+
+type AuthorForEmail = {
+  full_name: string | null;
+  email: string | null;
+  author_role: string;
+  display_order: number;
+};
 
 function redirectWithMessage(
   submissionId: string,
@@ -34,8 +60,67 @@ function redirectWithMessage(
     : "";
 
   redirect(
-    `/aluno/trabalhos/${submissionId}?${type}=${encodeURIComponent(message)}${hash}`
+    `/aluno/trabalhos/${submissionId}?${type}=${encodeURIComponent(
+      message
+    )}${hash}`
   );
+}
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = ACTION_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function sendEmailSafely({
+  email,
+  context,
+}: {
+  email: Parameters<typeof sendEmail>[0];
+  context: Record<string, unknown>;
+}) {
+  try {
+    const emailResult = await withTimeout(
+      async () => await sendEmail(email),
+      "O envio do e-mail demorou mais que o esperado.",
+      EMAIL_TIMEOUT_MS
+    );
+
+    if (!emailResult.success) {
+      console.error("E-mail não enviado:", {
+        ...context,
+        emailResult,
+      });
+    }
+  } catch (error) {
+    console.error("E-mail falhou ou demorou demais:", {
+      ...context,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+  }
 }
 
 async function validateEditableSubmission(
@@ -45,21 +130,34 @@ async function validateEditableSubmission(
     await getCurrentUser();
 
   const { data: submission, error } =
-    await supabase
-      .from("submissions")
-      .select(`
-        id,
-        status,
-        total_authors,
-        owner_user_id,
-        event_id,
-        requires_ethics_approval
-      `)
-      .eq("id", submissionId)
-      .eq("owner_user_id", profile.id)
-      .maybeSingle();
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submissions")
+          .select(`
+            id,
+            status,
+            total_authors,
+            owner_user_id,
+            event_id,
+            requires_ethics_approval
+          `)
+          .eq("id", submissionId)
+          .eq("owner_user_id", profile.id)
+          .maybeSingle(),
+      "A validação do trabalho demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (error || !submission) {
+    console.error("Erro ao validar trabalho editável:", {
+      submissionId,
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+    });
+
     redirectWithMessage(
       submissionId,
       "erro",
@@ -90,7 +188,7 @@ async function markCorrectionUpdatedIfNeeded({
   submissionId,
   submissionStatus,
 }: {
-  supabase: Awaited<ReturnType<typeof getCurrentUser>>["supabase"];
+  supabase: SupabaseClient;
   submissionId: string;
   submissionStatus: string;
 }) {
@@ -98,21 +196,44 @@ async function markCorrectionUpdatedIfNeeded({
     return;
   }
 
-  const { error } = await supabase
-    .from("submissions")
-    .update({
-      correction_updated_at: new Date().toISOString(),
-    })
-    .eq("id", submissionId)
-    .eq("status", "correction_requested");
+  try {
+    const { error } = await withTimeout(
+      async () =>
+        await supabase
+          .from("submissions")
+          .update({
+            correction_updated_at: new Date().toISOString(),
+          })
+          .eq("id", submissionId)
+          .eq("status", "correction_requested"),
+      "O registro da atualização da correção demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
-  if (error) {
-    console.error("Erro ao registrar alteração da correção:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    if (error) {
+      console.error(
+        "Erro ao registrar alteração da correção:",
+        {
+          submissionId,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        }
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Falha ou demora ao registrar alteração da correção:",
+      {
+        submissionId,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido",
+        error,
+      }
+    );
   }
 }
 
@@ -223,6 +344,194 @@ async function validatePdfFile(
   return null;
 }
 
+function formatDateTimeBR(date = new Date()) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(date);
+}
+
+async function replaceCurrentFile({
+  supabase,
+  profileId,
+  submissionId,
+  fileType,
+  file,
+  extension,
+  contentType,
+}: {
+  supabase: SupabaseClient;
+  profileId: string;
+  submissionId: string;
+  fileType: SubmissionFileType;
+  file: File;
+  extension: "pdf" | "docx";
+  contentType: string;
+}): Promise<FileReplacementRecord> {
+  const fileId = crypto.randomUUID();
+
+  const storagePath =
+    `${submissionId}/${fileType}/${fileId}.${extension}`;
+
+  const { error: uploadError } = await withTimeout(
+    async () =>
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, file, {
+          contentType,
+          upsert: false,
+        }),
+    "O envio do arquivo demorou mais que o esperado. Verifique sua conexão e tente novamente.",
+    UPLOAD_TIMEOUT_MS
+  );
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const {
+    data: previousFile,
+    error: previousFileError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submission_files")
+        .select(`
+          id,
+          version_number
+        `)
+        .eq("submission_id", submissionId)
+        .eq("file_type", fileType)
+        .eq("is_current", true)
+        .maybeSingle(),
+    "A consulta do arquivo anterior demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
+
+  if (previousFileError) {
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove([storagePath]);
+
+    throw previousFileError;
+  }
+
+  const nextVersion =
+    (previousFile?.version_number ?? 0) + 1;
+
+  if (previousFile) {
+    const { error: updatePreviousError } =
+      await withTimeout(
+        async () =>
+          await supabase
+            .from("submission_files")
+            .update({
+              is_current: false,
+            })
+            .eq("id", previousFile.id),
+        "A substituição do arquivo anterior demorou mais que o esperado.",
+        DATABASE_TIMEOUT_MS
+      );
+
+    if (updatePreviousError) {
+      await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([storagePath]);
+
+      throw updatePreviousError;
+    }
+  }
+
+  const { data: newFile, error: recordError } =
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_files")
+          .insert({
+            submission_id: submissionId,
+            file_type: fileType,
+            storage_path: storagePath,
+            original_filename: file.name,
+            mime_type: contentType,
+            size_bytes: file.size,
+            version_number: nextVersion,
+            is_current: true,
+            uploaded_by: profileId,
+          })
+          .select("id")
+          .maybeSingle(),
+      "O registro do arquivo demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
+
+  if (recordError || !newFile) {
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove([storagePath]);
+
+    if (previousFile) {
+      await supabase
+        .from("submission_files")
+        .update({
+          is_current: true,
+        })
+        .eq("id", previousFile.id);
+    }
+
+    if (recordError) {
+      throw recordError;
+    }
+
+    throw new Error(
+      "Não foi possível registrar o arquivo enviado."
+    );
+  }
+
+  return {
+    storagePath,
+    newFileId: newFile.id,
+    previousFileId: previousFile?.id ?? null,
+  };
+}
+
+async function rollbackFileReplacement({
+  supabase,
+  replacement,
+}: {
+  supabase: SupabaseClient;
+  replacement: FileReplacementRecord;
+}) {
+  try {
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .remove([replacement.storagePath]);
+
+    await supabase
+      .from("submission_files")
+      .delete()
+      .eq("id", replacement.newFileId);
+
+    if (replacement.previousFileId) {
+      await supabase
+        .from("submission_files")
+        .update({
+          is_current: true,
+        })
+        .eq("id", replacement.previousFileId);
+    }
+  } catch (error) {
+    console.error("Erro ao desfazer substituição de arquivo:", {
+      replacement,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
+  }
+}
+
 /* =========================================================
    AUTORES
 ========================================================= */
@@ -247,29 +556,34 @@ export async function saveAuthorComposition(
     submission.total_authors;
 
   if (
-  !totalAuthors ||
-  totalAuthors < MIN_TOTAL_AUTHORS ||
-  totalAuthors > MAX_TOTAL_AUTHORS
-) {
-  redirectWithMessage(
-    submissionId,
-    "erro",
-    "A quantidade total de autores deve estar entre 2 e 7, incluindo o autor responsável e o orientador.",
-    "autores-section"
-  );
-}
+    !totalAuthors ||
+    totalAuthors < MIN_TOTAL_AUTHORS ||
+    totalAuthors > MAX_TOTAL_AUTHORS
+  ) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A quantidade total de autores deve estar entre 2 e 7, incluindo o autor responsável e o orientador.",
+      "autores-section"
+    );
+  }
 
   const {
     data: submissionDetails,
     error: submissionDetailsError,
-  } = await supabase
-    .from("submissions")
-    .select(`
-      id,
-      title
-    `)
-    .eq("id", submissionId)
-    .maybeSingle();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .select(`
+          id,
+          title
+        `)
+        .eq("id", submissionId)
+        .maybeSingle(),
+    "A consulta dos dados do trabalho demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
 
   if (
     submissionDetailsError ||
@@ -285,17 +599,22 @@ export async function saveAuthorComposition(
   const {
     data: responsibleAuthor,
     error: responsibleError,
-  } = await supabase
-    .from("submission_authors")
-    .select(`
-      id,
-      full_name,
-      email,
-      email_normalized
-    `)
-    .eq("submission_id", submissionId)
-    .eq("author_role", "responsible")
-    .maybeSingle();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submission_authors")
+        .select(`
+          id,
+          full_name,
+          email,
+          email_normalized
+        `)
+        .eq("submission_id", submissionId)
+        .eq("author_role", "responsible")
+        .maybeSingle(),
+    "A consulta do autor responsável demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
 
   if (
     responsibleError ||
@@ -308,9 +627,16 @@ export async function saveAuthorComposition(
     );
   }
 
-  const normalizedEmails = new Set<string>([
-    responsibleAuthor.email_normalized,
-  ]);
+  const responsibleEmail =
+    responsibleAuthor.email_normalized ??
+    responsibleAuthor.email?.toLowerCase() ??
+    "";
+
+  const normalizedEmails = new Set<string>();
+
+  if (responsibleEmail) {
+    normalizedEmails.add(responsibleEmail);
+  }
 
   const authorsToInsert: Array<{
     submission_id: string;
@@ -351,7 +677,8 @@ export async function saveAuthorComposition(
       redirectWithMessage(
         submissionId,
         "erro",
-        `Informe o nome completo do ${position}º autor.`
+        `Informe o nome completo do ${position}º autor.`,
+        "autores-section"
       );
     }
 
@@ -362,7 +689,8 @@ export async function saveAuthorComposition(
       redirectWithMessage(
         submissionId,
         "erro",
-        `Informe um e-mail válido para o ${position}º autor.`
+        `Informe um e-mail válido para o ${position}º autor.`,
+        "autores-section"
       );
     }
 
@@ -370,7 +698,8 @@ export async function saveAuthorComposition(
       redirectWithMessage(
         submissionId,
         "erro",
-        `O e-mail informado para o ${position}º autor já está sendo utilizado neste trabalho.`
+        `O e-mail informado para o ${position}º autor já está sendo utilizado neste trabalho.`,
+        "autores-section"
       );
     }
 
@@ -389,46 +718,63 @@ export async function saveAuthorComposition(
   const {
     data: previousAuthors,
     error: previousAuthorsError,
-  } = await supabase
-    .from("submission_authors")
-    .select(`
-      user_id,
-      full_name,
-      email,
-      is_responsible,
-      author_role,
-      display_order
-    `)
-    .eq("submission_id", submissionId)
-    .neq("author_role", "responsible");
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submission_authors")
+        .select(`
+          user_id,
+          full_name,
+          email,
+          is_responsible,
+          author_role,
+          display_order
+        `)
+        .eq("submission_id", submissionId)
+        .neq("author_role", "responsible"),
+    "A preparação da atualização dos autores demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
 
   if (previousAuthorsError) {
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível preparar a atualização dos autores."
+      "Não foi possível preparar a atualização dos autores.",
+      "autores-section"
     );
   }
 
   const { error: deleteError } =
-    await supabase
-      .from("submission_authors")
-      .delete()
-      .eq("submission_id", submissionId)
-      .neq("author_role", "responsible");
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_authors")
+          .delete()
+          .eq("submission_id", submissionId)
+          .neq("author_role", "responsible"),
+      "A atualização dos autores demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (deleteError) {
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível atualizar os autores."
+      "Não foi possível atualizar os autores.",
+      "autores-section"
     );
   }
 
   const { error: insertError } =
-    await supabase
-      .from("submission_authors")
-      .insert(authorsToInsert);
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_authors")
+          .insert(authorsToInsert),
+      "O salvamento dos autores demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (insertError) {
     console.error(
@@ -471,48 +817,45 @@ export async function saveAuthorComposition(
       redirectWithMessage(
         submissionId,
         "erro",
-        "Existem autores duplicados ou posições de autoria repetidas."
+        "Existem autores duplicados ou posições de autoria repetidas.",
+        "autores-section"
       );
     }
 
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível salvar a composição da autoria."
+      "Não foi possível salvar a composição da autoria.",
+      "autores-section"
     );
   }
 
-  const savedAt = new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date());
+  const savedAt = formatDateTimeBR();
 
-  for (const author of authorsToInsert) {
-    const emailResult = await sendEmail({
-      to: author.email,
-      subject: `Confirmação de autoria - ${submissionDetails.title}`,
-      html: authorshipCompositionSavedEmail({
-        authorName: author.full_name,
-        responsibleAuthorName:
-          responsibleAuthor.full_name ??
-          "Autor responsável",
-        title: submissionDetails.title,
-        role: author.author_role,
-        savedAt,
-      }),
-    });
-
-    if (!emailResult.success) {
-      console.error(
-        "E-mail de confirmação de autoria não enviado:",
-        {
+  await Promise.all(
+    authorsToInsert.map((author) =>
+      sendEmailSafely({
+        email: {
+          to: author.email,
+          subject: `Confirmação de autoria - ${submissionDetails.title}`,
+          html: authorshipCompositionSavedEmail({
+            authorName: author.full_name,
+            responsibleAuthorName:
+              responsibleAuthor.full_name ??
+              "Autor responsável",
+            title: submissionDetails.title,
+            role: author.author_role,
+            savedAt,
+          }),
+        },
+        context: {
+          type: "authorship_composition_saved",
           authorEmail: author.email,
-          emailResult,
-        }
-      );
-    }
-  }
+          submissionId,
+        },
+      })
+    )
+  );
 
   await markCorrectionUpdatedIfNeeded({
     supabase,
@@ -557,7 +900,8 @@ export async function uploadEthicsApproval(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Selecione o parecer consubstanciado de aprovação do CEP."
+      "Selecione o parecer consubstanciado de aprovação do CEP.",
+      "aspectos-eticos-section"
     );
   }
 
@@ -568,7 +912,8 @@ export async function uploadEthicsApproval(
     redirectWithMessage(
       submissionId,
       "erro",
-      `Parecer do CEP: ${validationError}`
+      `Parecer do CEP: ${validationError}`,
+      "aspectos-eticos-section"
     );
   }
 
@@ -581,131 +926,44 @@ export async function uploadEthicsApproval(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Este trabalho foi declarado como dispensado de aprovação pelo CEP."
+      "Este trabalho foi declarado como dispensado de aprovação pelo CEP.",
+      "aspectos-eticos-section"
     );
   }
 
-  const fileId = crypto.randomUUID();
-
-  const storagePath =
-    `${submissionId}/ethics_approval/${fileId}.pdf`;
-
-  const { error: uploadError } =
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(
-        storagePath,
-        fileValue,
-        {
-          contentType: PDF_MIME_TYPE,
-          upsert: false,
-        }
-      );
-
-  if (uploadError) {
-    console.error(
-      "Erro no upload do parecer do CEP:",
-      uploadError
-    );
+  try {
+    await replaceCurrentFile({
+      supabase,
+      profileId: profile.id,
+      submissionId,
+      fileType: "ethics_approval",
+      file: fileValue,
+      extension: "pdf",
+      contentType: PDF_MIME_TYPE,
+    });
+  } catch (error) {
+    console.error("Erro ao enviar parecer do CEP:", {
+      submissionId,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
 
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível enviar o parecer do CEP."
+      "Não foi possível enviar o parecer do CEP.",
+      "aspectos-eticos-section"
     );
   }
 
-  const {
-    data: previousFile,
-    error: previousFileError,
-  } = await supabase
-    .from("submission_files")
-    .select(`
-      id,
-      version_number
-    `)
-    .eq("submission_id", submissionId)
-    .eq(
-      "file_type",
-      "ethics_approval"
-    )
-    .eq("is_current", true)
-    .maybeSingle();
-
-  if (previousFileError) {
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .remove([storagePath]);
-
-    redirectWithMessage(
-      submissionId,
-      "erro",
-      "Não foi possível consultar o parecer do CEP anterior."
-    );
-  }
-
-  const nextVersion =
-    (previousFile?.version_number ?? 0) + 1;
-
-  if (previousFile) {
-    const { error: updatePreviousError } =
-      await supabase
-        .from("submission_files")
-        .update({
-          is_current: false,
-        })
-        .eq("id", previousFile.id);
-
-    if (updatePreviousError) {
-      await supabase.storage
-        .from(STORAGE_BUCKET)
-        .remove([storagePath]);
-
-      redirectWithMessage(
-        submissionId,
-        "erro",
-        "Não foi possível substituir o parecer do CEP anterior."
-      );
-    }
-  }
-
-  const { error: recordError } =
-    await supabase
-      .from("submission_files")
-      .insert({
-        submission_id: submissionId,
-        file_type:
-          "ethics_approval",
-        storage_path: storagePath,
-        original_filename:
-          fileValue.name,
-        mime_type: PDF_MIME_TYPE,
-        size_bytes: fileValue.size,
-        version_number: nextVersion,
-        is_current: true,
-        uploaded_by: profile.id,
-      });
-
-  if (recordError) {
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .remove([storagePath]);
-
-    if (previousFile) {
-      await supabase
-        .from("submission_files")
-        .update({
-          is_current: true,
-        })
-        .eq("id", previousFile.id);
-    }
-
-    redirectWithMessage(
-      submissionId,
-      "erro",
-      "Não foi possível registrar o parecer do CEP."
-    );
-  }
+  await markCorrectionUpdatedIfNeeded({
+    supabase,
+    submissionId,
+    submissionStatus: submission.status,
+  });
 
   revalidatePath(
     `/aluno/trabalhos/${submissionId}`
@@ -744,7 +1002,8 @@ export async function uploadAdvisorDeclaration(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Selecione a declaração do orientador."
+      "Selecione a declaração do orientador.",
+      "declaracao-orientador-section"
     );
   }
 
@@ -755,7 +1014,8 @@ export async function uploadAdvisorDeclaration(
     redirectWithMessage(
       submissionId,
       "erro",
-      `Declaração do orientador: ${validationError}`
+      `Declaração do orientador: ${validationError}`,
+      "declaracao-orientador-section"
     );
   }
 
@@ -764,125 +1024,31 @@ export async function uploadAdvisorDeclaration(
       submissionId
     );
 
-  const fileId = crypto.randomUUID();
-
-  const storagePath =
-    `${submissionId}/advisor_declaration/${fileId}.pdf`;
-
-  const { error: uploadError } =
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(
-        storagePath,
-        fileValue,
-        {
-          contentType: PDF_MIME_TYPE,
-          upsert: false,
-        }
-      );
-
-  if (uploadError) {
-    console.error(
-      "Erro no upload da declaração:",
-      uploadError
-    );
+  try {
+    await replaceCurrentFile({
+      supabase,
+      profileId: profile.id,
+      submissionId,
+      fileType: "advisor_declaration",
+      file: fileValue,
+      extension: "pdf",
+      contentType: PDF_MIME_TYPE,
+    });
+  } catch (error) {
+    console.error("Erro ao enviar declaração do orientador:", {
+      submissionId,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido",
+      error,
+    });
 
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível enviar a declaração do orientador."
-    );
-  }
-
-  const {
-    data: previousFile,
-    error: previousFileError,
-  } = await supabase
-    .from("submission_files")
-    .select(`
-      id,
-      version_number
-    `)
-    .eq("submission_id", submissionId)
-    .eq(
-      "file_type",
-      "advisor_declaration"
-    )
-    .eq("is_current", true)
-    .maybeSingle();
-
-  if (previousFileError) {
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .remove([storagePath]);
-
-    redirectWithMessage(
-      submissionId,
-      "erro",
-      "Não foi possível consultar a declaração anterior."
-    );
-  }
-
-  const nextVersion =
-    (previousFile?.version_number ?? 0) + 1;
-
-  if (previousFile) {
-    const { error: updatePreviousError } =
-      await supabase
-        .from("submission_files")
-        .update({
-          is_current: false,
-        })
-        .eq("id", previousFile.id);
-
-    if (updatePreviousError) {
-      await supabase.storage
-        .from(STORAGE_BUCKET)
-        .remove([storagePath]);
-
-      redirectWithMessage(
-        submissionId,
-        "erro",
-        "Não foi possível substituir a declaração anterior."
-      );
-    }
-  }
-
-  const { error: recordError } =
-    await supabase
-      .from("submission_files")
-      .insert({
-        submission_id: submissionId,
-        file_type:
-          "advisor_declaration",
-        storage_path: storagePath,
-        original_filename:
-          fileValue.name,
-        mime_type: PDF_MIME_TYPE,
-        size_bytes: fileValue.size,
-        version_number: nextVersion,
-        is_current: true,
-        uploaded_by: profile.id,
-      });
-
-  if (recordError) {
-    await supabase.storage
-      .from(STORAGE_BUCKET)
-      .remove([storagePath]);
-
-    if (previousFile) {
-      await supabase
-        .from("submission_files")
-        .update({
-          is_current: true,
-        })
-        .eq("id", previousFile.id);
-    }
-
-    redirectWithMessage(
-      submissionId,
-      "erro",
-      "Não foi possível registrar a declaração do orientador."
+      "Não foi possível enviar a declaração do orientador.",
+      "declaracao-orientador-section"
     );
   }
 
@@ -902,31 +1068,6 @@ export async function uploadAdvisorDeclaration(
     "Declaração do orientador enviada com sucesso.",
     "declaracao-orientador-section"
   );
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMessage: string,
-  timeoutMs = UPLOAD_TIMEOUT_MS
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(timeoutMessage));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([
-      promise,
-      timeoutPromise,
-    ]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
 }
 
 /* =========================================================
@@ -957,7 +1098,8 @@ export async function uploadSubmissionFiles(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Selecione as duas versões do trabalho."
+      "Selecione as duas versões do trabalho.",
+      "arquivos-trabalho-section"
     );
   }
 
@@ -970,7 +1112,8 @@ export async function uploadSubmissionFiles(
     redirectWithMessage(
       submissionId,
       "erro",
-      `Versão identificada: ${identifiedError}`
+      `Versão identificada: ${identifiedError}`,
+      "arquivos-trabalho-section"
     );
   }
 
@@ -983,7 +1126,8 @@ export async function uploadSubmissionFiles(
     redirectWithMessage(
       submissionId,
       "erro",
-      `Versão anonimizada: ${anonymousError}`
+      `Versão anonimizada: ${anonymousError}`,
+      "arquivos-trabalho-section"
     );
   }
 
@@ -992,118 +1136,37 @@ export async function uploadSubmissionFiles(
       submissionId
     );
 
-  const files = [
-    {
-      type: "identified" as const,
-      file: identifiedFileValue,
-    },
-    {
-      type: "anonymous" as const,
-      file: anonymousFileValue,
-    },
-  ];
-
-  const uploadedPaths: string[] = [];
-  let uploadFailure = false;
+  const completedReplacements: FileReplacementRecord[] = [];
 
   try {
-    for (const item of files) {
-      const fileId = crypto.randomUUID();
+    const identifiedReplacement =
+      await replaceCurrentFile({
+        supabase,
+        profileId: profile.id,
+        submissionId,
+        fileType: "identified",
+        file: identifiedFileValue,
+        extension: "docx",
+        contentType: DOCX_MIME_TYPE,
+      });
 
-      const storagePath =
-        `${submissionId}/${item.type}/${fileId}.docx`;
+    completedReplacements.push(identifiedReplacement);
 
-      const { error: uploadError } =
-        await withTimeout(
-          supabase.storage
-            .from(STORAGE_BUCKET)
-            .upload(
-              storagePath,
-              item.file,
-              {
-                contentType: DOCX_MIME_TYPE,
-                upsert: false,
-              }
-            ),
-          "O envio dos arquivos demorou mais que o esperado. Verifique sua conexão e tente novamente."
-        );
+    const anonymousReplacement =
+      await replaceCurrentFile({
+        supabase,
+        profileId: profile.id,
+        submissionId,
+        fileType: "anonymous",
+        file: anonymousFileValue,
+        extension: "docx",
+        contentType: DOCX_MIME_TYPE,
+      });
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      uploadedPaths.push(storagePath);
-
-      const {
-        data: previousFile,
-        error: previousFileError,
-      } = await supabase
-        .from("submission_files")
-        .select(`
-          id,
-          version_number
-        `)
-        .eq(
-          "submission_id",
-          submissionId
-        )
-        .eq("file_type", item.type)
-        .eq("is_current", true)
-        .maybeSingle();
-
-      if (previousFileError) {
-        throw previousFileError;
-      }
-
-      const nextVersion =
-        (previousFile?.version_number ??
-          0) + 1;
-
-      if (previousFile) {
-        const {
-          error: previousUpdateError,
-        } = await supabase
-          .from("submission_files")
-          .update({
-            is_current: false,
-          })
-          .eq("id", previousFile.id);
-
-        if (previousUpdateError) {
-          throw previousUpdateError;
-        }
-      }
-
-      const { error: databaseError } =
-        await supabase
-          .from("submission_files")
-          .insert({
-            submission_id:
-              submissionId,
-            file_type: item.type,
-            storage_path:
-              storagePath,
-            original_filename:
-              item.file.name,
-            mime_type:
-              DOCX_MIME_TYPE,
-            size_bytes:
-              item.file.size,
-            version_number:
-              nextVersion,
-            is_current: true,
-            uploaded_by:
-              profile.id,
-          });
-
-      if (databaseError) {
-        throw databaseError;
-      }
-    }
+    completedReplacements.push(anonymousReplacement);
   } catch (error) {
-    uploadFailure = true;
-
     console.error("Erro ao enviar arquivos:", {
+      submissionId,
       message:
         error instanceof Error
           ? error.message
@@ -1111,14 +1174,17 @@ export async function uploadSubmissionFiles(
       error,
     });
 
-    if (uploadedPaths.length > 0) {
-      await supabase.storage
-        .from(STORAGE_BUCKET)
-        .remove(uploadedPaths);
-    }
-  }
+    await Promise.all(
+      completedReplacements
+        .reverse()
+        .map((replacement) =>
+          rollbackFileReplacement({
+            supabase,
+            replacement,
+          })
+        )
+    );
 
-  if (uploadFailure) {
     redirectWithMessage(
       submissionId,
       "erro",
@@ -1189,15 +1255,20 @@ export async function submitSubmission(
     : "submitted";
 
   const { data: event, error: eventError } =
-    await supabase
-      .from("events")
-      .select(`
-        year,
-        submission_starts_at,
-        submission_ends_at
-      `)
-      .eq("id", submission.event_id)
-      .single();
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("events")
+          .select(`
+            year,
+            submission_starts_at,
+            submission_ends_at
+          `)
+          .eq("id", submission.event_id)
+          .single(),
+      "A consulta do evento demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (eventError || !event) {
     redirectWithMessage(
@@ -1236,22 +1307,28 @@ export async function submitSubmission(
   }
 
   const { data: authors, error: authorsError } =
-    await supabase
-      .from("submission_authors")
-      .select(`
-        id,
-        full_name,
-        email,
-        author_role,
-        display_order
-      `)
-      .eq("submission_id", submissionId);
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_authors")
+          .select(`
+            id,
+            full_name,
+            email,
+            author_role,
+            display_order
+          `)
+          .eq("submission_id", submissionId),
+      "A verificação dos autores demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (authorsError) {
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível verificar os autores."
+      "Não foi possível verificar os autores.",
+      "autores-section"
     );
   }
 
@@ -1262,7 +1339,8 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      `Preencha e salve todos os ${totalAuthors} autores antes de submeter o trabalho.`
+      `Preencha e salve todos os ${totalAuthors} autores antes de submeter o trabalho.`,
+      "autores-section"
     );
   }
 
@@ -1282,7 +1360,8 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "O autor responsável não foi identificado corretamente."
+      "O autor responsável não foi identificado corretamente.",
+      "autores-section"
     );
   }
 
@@ -1290,19 +1369,25 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "O orientador deve ocupar a última posição da autoria."
+      "O orientador deve ocupar a última posição da autoria.",
+      "autores-section"
     );
   }
 
   const { data: files, error: filesError } =
-    await supabase
-      .from("submission_files")
-      .select(`
-        id,
-        file_type
-      `)
-      .eq("submission_id", submissionId)
-      .eq("is_current", true);
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_files")
+          .select(`
+            id,
+            file_type
+          `)
+          .eq("submission_id", submissionId)
+          .eq("is_current", true),
+      "A verificação dos documentos demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (filesError) {
     redirectWithMessage(
@@ -1320,7 +1405,8 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Envie a versão identificada do trabalho."
+      "Envie a versão identificada do trabalho.",
+      "arquivos-trabalho-section"
     );
   }
 
@@ -1328,7 +1414,8 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Envie a versão anonimizada do trabalho."
+      "Envie a versão anonimizada do trabalho.",
+      "arquivos-trabalho-section"
     );
   }
 
@@ -1340,7 +1427,8 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Envie a declaração do orientador."
+      "Envie a declaração do orientador.",
+      "declaracao-orientador-section"
     );
   }
 
@@ -1351,22 +1439,28 @@ export async function submitSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Envie o parecer consubstanciado de aprovação do CEP."
+      "Envie o parecer consubstanciado de aprovação do CEP.",
+      "aspectos-eticos-section"
     );
   }
 
   const {
     data: declarations,
     error: declarationsError,
-  } = await supabase
-    .from("submission_declarations")
-    .select(`
-      id,
-      accepted_general_terms,
-      accepted_ethics_terms
-    `)
-    .eq("submission_id", submissionId)
-    .maybeSingle();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submission_declarations")
+        .select(`
+          id,
+          accepted_general_terms,
+          accepted_ethics_terms
+        `)
+        .eq("submission_id", submissionId)
+        .maybeSingle(),
+    "A verificação das declarações obrigatórias demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
 
   if (
     declarationsError ||
@@ -1394,15 +1488,20 @@ export async function submitSubmission(
     new Date().toISOString();
 
   const { error: originalityError } =
-    await supabase
-      .from("submission_declarations")
-      .update({
-        accepted_originality_terms: true,
-        originality_terms_accepted_at:
-          acceptedAt,
-        accepted_by: profile.id,
-      })
-      .eq("submission_id", submissionId);
+    await withTimeout(
+      async () =>
+        await supabase
+          .from("submission_declarations")
+          .update({
+            accepted_originality_terms: true,
+            originality_terms_accepted_at:
+              acceptedAt,
+            accepted_by: profile.id,
+          })
+          .eq("submission_id", submissionId),
+      "O registro da declaração de ineditismo demorou mais que o esperado.",
+      DATABASE_TIMEOUT_MS
+    );
 
   if (originalityError) {
     console.error(
@@ -1434,16 +1533,25 @@ export async function submitSubmission(
         protocol,
       };
 
-  const { error: submitError } =
-    await supabase
-      .from("submissions")
-      .update(updatePayload)
-      .eq("id", submissionId)
-      .eq("owner_user_id", profile.id)
-      .in("status", [
-        "draft",
-        "correction_requested",
-      ]);
+  const {
+    data: submittedRow,
+    error: submitError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .update(updatePayload)
+        .eq("id", submissionId)
+        .eq("owner_user_id", profile.id)
+        .in("status", [
+          "draft",
+          "correction_requested",
+        ])
+        .select("id, status, title, protocol")
+        .maybeSingle(),
+    "A finalização da submissão demorou mais que o esperado.",
+    DATABASE_TIMEOUT_MS
+  );
 
   if (submitError) {
     console.error("Erro completo ao submeter trabalho:", {
@@ -1508,101 +1616,85 @@ export async function submitSubmission(
     );
   }
 
-  const {
-    data: submittedSubmission,
-    error: submittedSubmissionError,
-  } = await supabase
-    .from("submissions")
-    .select(`
-      title,
-      protocol
-    `)
-    .eq("id", submissionId)
-    .maybeSingle();
-
-  if (submittedSubmissionError) {
-    console.error("Erro ao buscar dados para e-mail:", {
-      message: submittedSubmissionError.message,
-      details: submittedSubmissionError.details,
-      hint: submittedSubmissionError.hint,
-      code: submittedSubmissionError.code,
-    });
+  if (!submittedRow) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "O trabalho não pôde ser finalizado porque já foi alterado. Atualize a página e tente novamente."
+    );
   }
 
   const responsibleAuthorEmail =
-  responsibleAuthor.email ?? profile.email;
+    responsibleAuthor.email ?? profile.email;
 
-const responsibleAuthorName =
-  responsibleAuthor.full_name ?? profile.full_name;
+  const responsibleAuthorName =
+    responsibleAuthor.full_name ?? profile.full_name;
 
-const submittedAt = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "short",
-  timeStyle: "short",
-  timeZone: "America/Sao_Paulo",
-}).format(new Date());
+  const submittedAt = formatDateTimeBR();
 
-if (submittedSubmission?.title) {
   if (isCorrectionResubmission) {
-    const emailResult = await sendEmail({
-      to: responsibleAuthorEmail,
-      subject: `Reenvio de trabalho recebido - ${
-        submittedSubmission.protocol ?? submittedSubmission.title
-      }`,
-      html: submissionResubmittedEmail({
-        studentName: responsibleAuthorName ?? "Aluno(a)",
-        title: submittedSubmission.title,
-        protocol: submittedSubmission.protocol,
-        resubmittedAt: submittedAt,
-      }),
+    await sendEmailSafely({
+      email: {
+        to: responsibleAuthorEmail,
+        subject: `Reenvio de trabalho recebido - ${
+          submittedRow.protocol ?? submittedRow.title
+        }`,
+        html: submissionResubmittedEmail({
+          studentName: responsibleAuthorName ?? "Aluno(a)",
+          title: submittedRow.title,
+          protocol: submittedRow.protocol,
+          resubmittedAt: submittedAt,
+        }),
+      },
+      context: {
+        type: "submission_resubmitted",
+        submissionId,
+        authorEmail: responsibleAuthorEmail,
+      },
     });
-
-    if (!emailResult.success) {
-      console.error(
-        "Comprovante de reenvio não enviado:",
-        emailResult
-      );
-    }
   } else {
-    const authorsSortedByOrder = [...authors].sort(
+    const authorsSortedByOrder = [
+      ...(authors as AuthorForEmail[]),
+    ].sort(
       (firstAuthor, secondAuthor) =>
         firstAuthor.display_order -
         secondAuthor.display_order
     );
 
-    for (const author of authorsSortedByOrder) {
-      if (!author.email) {
-        continue;
-      }
+    await Promise.all(
+      authorsSortedByOrder.map((author) => {
+        if (!author.email) {
+          return Promise.resolve();
+        }
 
-      const emailResult = await sendEmail({
-        to: author.email,
-        subject: `Comprovante de submissão - ${
-          submittedSubmission.protocol ?? protocol
-        }`,
-        html: submissionConfirmationEmail({
-          studentName: author.full_name ?? "Autor(a)",
-          title: submittedSubmission.title,
-          protocol:
-            submittedSubmission.protocol ??
-            protocol ??
-            "Protocolo não informado",
-          submittedAt,
-        }),
-      });
-
-      if (!emailResult.success) {
-        console.error(
-          "Comprovante de submissão não enviado para autor:",
-          {
+        return sendEmailSafely({
+          email: {
+            to: author.email,
+            subject: `Comprovante de submissão - ${
+              submittedRow.protocol ??
+              protocol ??
+              "Protocolo não informado"
+            }`,
+            html: submissionConfirmationEmail({
+              studentName:
+                author.full_name ?? "Autor(a)",
+              title: submittedRow.title,
+              protocol:
+                submittedRow.protocol ??
+                protocol ??
+                "Protocolo não informado",
+              submittedAt,
+            }),
+          },
+          context: {
+            type: "submission_confirmation",
+            submissionId,
             authorEmail: author.email,
-            authorName: author.full_name,
-            emailResult,
-          }
-        );
-      }
-    }
+          },
+        });
+      })
+    );
   }
-}
 
   revalidatePath("/aluno");
   revalidatePath("/aluno/trabalhos");
@@ -1616,7 +1708,7 @@ if (submittedSubmission?.title) {
     isCorrectionResubmission
       ? "Trabalho reenviado com sucesso para nova conferência documental."
       : `Trabalho submetido com sucesso. Protocolo: ${
-          submittedSubmission?.protocol ??
+          submittedRow.protocol ??
           protocol
         }`
   );

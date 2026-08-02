@@ -17,13 +17,20 @@ function redirectWithError(
   message: string
 ) {
   const destination = new URL(
-    `/avaliador/trabalhos/${assignmentId}`,
+    assignmentId
+      ? `/avaliador/trabalhos/${assignmentId}`
+      : "/avaliador",
     request.url
   );
 
   destination.searchParams.set("erro", message);
 
-  return NextResponse.redirect(destination);
+  return NextResponse.redirect(destination, {
+    status: 303,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }
 
 function normalizeStoragePath(storagePath: string) {
@@ -76,7 +83,7 @@ async function createDownloadSignedUrl({
       };
     }
 
-    console.error("Tentativa de download falhou:", {
+    console.error("Tentativa de download do avaliador falhou:", {
       bucket: STORAGE_BUCKET,
       attemptedPath: path,
       originalPath: storagePath,
@@ -122,8 +129,7 @@ export async function GET(
         .from("evaluation_assignments")
         .select(`
           id,
-          submission_id,
-          status
+          submission_id
         `)
         .eq("id", assignmentId)
         .eq("evaluator_id", profile.id)
@@ -135,7 +141,9 @@ export async function GET(
         .maybeSingle();
 
     if (assignmentError || !assignment) {
-      console.error("Erro ao localizar avaliação:", {
+      console.error("Erro ao localizar avaliação para download:", {
+        assignmentId,
+        evaluatorId: profile.id,
         message: assignmentError?.message,
         details: assignmentError?.details,
         hint: assignmentError?.hint,
@@ -155,10 +163,8 @@ export async function GET(
         .select(`
           id,
           submission_id,
-          file_type,
           storage_path,
-          original_filename,
-          is_current
+          original_filename
         `)
         .eq("id", fileId)
         .eq("submission_id", assignment.submission_id)
@@ -168,13 +174,14 @@ export async function GET(
 
     if (fileError || !file) {
       console.error("Erro ao localizar arquivo anonimizado:", {
+        assignmentId,
+        evaluatorId: profile.id,
+        fileId,
+        submissionId: assignment.submission_id,
         message: fileError?.message,
         details: fileError?.details,
         hint: fileError?.hint,
         code: fileError?.code,
-        fileId,
-        assignmentId,
-        submissionId: assignment.submission_id,
       });
 
       return redirectWithError(
@@ -184,20 +191,12 @@ export async function GET(
       );
     }
 
-    console.log("Preparando download do avaliador:", {
-      bucket: STORAGE_BUCKET,
-      fileId: file.id,
-      submissionId: file.submission_id,
-      originalFilename: file.original_filename,
-      storagePath: file.storage_path,
-      normalizedStoragePath: normalizeStoragePath(file.storage_path),
-    });
-
     const signedUrlResult =
       await createDownloadSignedUrl({
         supabase,
         storagePath: file.storage_path,
-        filename: file.original_filename,
+        filename:
+          file.original_filename || "trabalho-anonimizado.pdf",
       });
 
     if (!signedUrlResult?.signedUrl) {
@@ -208,17 +207,23 @@ export async function GET(
       );
     }
 
-    console.log("Download do avaliador gerado com sucesso:", {
-      usedPath: signedUrlResult.usedPath,
-    });
-
     return NextResponse.redirect(
-      signedUrlResult.signedUrl
+      signedUrlResult.signedUrl,
+      {
+        status: 302,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
     );
   } catch (error) {
     console.error(
       "Erro inesperado no download do avaliador:",
-      error
+      {
+        assignmentId,
+        fileId,
+        error,
+      }
     );
 
     return redirectWithError(

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -33,11 +34,13 @@ export default async function AdminPage() {
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: submissionsData, error: submissionsError } =
-    await supabase.from("submissions").select("status");
+    await supabase
+      .from("submissions")
+      .select("status");
 
   if (submissionsError) {
     console.error("Erro ao carregar resumo de submissões:", {
@@ -71,15 +74,25 @@ export default async function AdminPage() {
     "evaluator_replacement_required",
   ]);
 
-  const finalResults = countByStatus(submissions, [
-    "selected_oral",
-    "selected_banner",
-  ]);
-
   const needsAdminAction = countByStatus(submissions, [
     "third_evaluator_required",
     "evaluator_replacement_required",
   ]);
+
+  const selectedOral = countByStatus(submissions, [
+    "selected_oral",
+  ]);
+
+  const selectedBanner = countByStatus(submissions, [
+    "selected_banner",
+  ]);
+
+  const notSelected = countByStatus(submissions, [
+    "not_selected",
+  ]);
+
+  const finalResults =
+    selectedOral + selectedBanner + notSelected;
 
   return (
     <div className="space-y-8">
@@ -156,7 +169,7 @@ export default async function AdminPage() {
             >
               <Link href="/admin/avaliacoes">
                 Resolver pendências
-                <ArrowRight />
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
@@ -192,7 +205,7 @@ export default async function AdminPage() {
         <MetricCard
           label="Resultado definido"
           value={finalResults}
-          description="Classificados para oral ou banner."
+          description={`${selectedOral} oral, ${selectedBanner} banner e ${notSelected} não selecionado(s).`}
         />
       </section>
 
@@ -234,7 +247,7 @@ export default async function AdminPage() {
           <AdminActionCard
             icon={<BarChart3 className="size-5" />}
             title="Resultados"
-            description="Consulte o ranking geral, médias finais e a classificação automática para apresentação oral e banner."
+            description="Consulte o ranking geral, médias finais e a classificação automática para apresentação oral, banner e não selecionados."
             href="/admin/resultados"
             buttonLabel="Ver resultados"
           />
@@ -321,7 +334,7 @@ function MetricCard({
 }
 
 type AdminActionCardProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
   href: string;
@@ -389,7 +402,7 @@ function AdminActionCard({
       >
         <Link href={href}>
           {buttonLabel}
-          <ArrowRight />
+          <ArrowRight className="size-4" />
         </Link>
       </Button>
     </div>

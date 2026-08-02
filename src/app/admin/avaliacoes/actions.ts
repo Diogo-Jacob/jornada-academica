@@ -6,6 +6,35 @@ import { sendEmail } from "@/services/email/send-email";
 import { evaluationAssignedEmail } from "@/services/email/templates/evaluation-assigned";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
+const ACTION_TIMEOUT_MS = 30_000;
+const STATUS_UPDATE_TIMEOUT_MS = 15_000;
+const EMAIL_TIMEOUT_MS = 15_000;
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = ACTION_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function redirectWithMessage(
   type: "erro" | "sucesso",
   message: string
@@ -22,7 +51,7 @@ async function getAdminContext() {
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   return {
@@ -53,7 +82,9 @@ async function sendEvaluationAssignedEmail({
   assignmentType: "initial" | "replacement" | "third";
   assignedAt: string;
 }) {
-  if (!evaluator.email) {
+  const evaluatorEmail = evaluator.email;
+
+  if (!evaluatorEmail) {
     console.error(
       "E-mail do avaliador não encontrado. Notificação não enviada."
     );
@@ -61,27 +92,47 @@ async function sendEvaluationAssignedEmail({
     return;
   }
 
-  const emailResult = await sendEmail({
-    to: evaluator.email,
-    subject:
-      assignmentType === "third"
-        ? "Terceira avaliação atribuída"
-        : assignmentType === "replacement"
-          ? "Avaliação atribuída como substituição"
-          : "Novo trabalho atribuído para avaliação",
-    html: evaluationAssignedEmail({
-      evaluatorName:
-        evaluator.full_name ?? "Avaliador(a)",
-      title: submissionTitle,
-      assignmentType,
-      assignedAt: formatDateTime(assignedAt),
-    }),
-  });
+  try {
+    const emailResult = await withTimeout(
+      async () =>
+        await sendEmail({
+          to: evaluatorEmail,
+          subject:
+            assignmentType === "third"
+              ? "Terceira avaliação atribuída"
+              : assignmentType === "replacement"
+                ? "Avaliação atribuída como substituição"
+                : "Novo trabalho atribuído para avaliação",
+          html: evaluationAssignedEmail({
+            evaluatorName:
+              evaluator.full_name ?? "Avaliador(a)",
+            title: submissionTitle,
+            assignmentType,
+            assignedAt: formatDateTime(assignedAt),
+          }),
+        }),
+      "O envio do e-mail de atribuição demorou mais que o esperado.",
+      EMAIL_TIMEOUT_MS
+    );
 
-  if (!emailResult.success) {
+    if (!emailResult.success) {
+      console.error(
+        "E-mail de atribuição de avaliação não enviado:",
+        emailResult
+      );
+    }
+  } catch (error) {
     console.error(
-      "E-mail de atribuição de avaliação não enviado:",
-      emailResult
+      "A avaliação foi atribuída, mas o envio do e-mail falhou ou demorou demais:",
+      {
+        evaluatorEmail,
+        assignmentType,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido",
+        error,
+      }
     );
   }
 }
@@ -137,6 +188,18 @@ async function validateEvaluatorNotAlreadyAssigned({
       .maybeSingle();
 
   if (error) {
+    console.error(
+      "Erro ao verificar se avaliador já foi atribuído:",
+      {
+        submissionId,
+        evaluatorId,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      }
+    );
+
     redirectWithMessage(
       "erro",
       "Não foi possível verificar se o avaliador já foi atribuído a este trabalho."
@@ -220,11 +283,29 @@ export async function assignEvaluators(formData: FormData) {
     );
   }
 
-  const { data: existingAssignments } =
+  const { data: existingAssignments, error: existingAssignmentsError } =
     await supabase
       .from("evaluation_assignments")
       .select("id")
       .eq("submission_id", submissionId);
+
+  if (existingAssignmentsError) {
+    console.error(
+      "Erro ao consultar atribuições existentes:",
+      {
+        submissionId,
+        message: existingAssignmentsError.message,
+        details: existingAssignmentsError.details,
+        hint: existingAssignmentsError.hint,
+        code: existingAssignmentsError.code,
+      }
+    );
+
+    redirectWithMessage(
+      "erro",
+      "Não foi possível verificar se esta submissão já possui avaliadores."
+    );
+  }
 
   if (existingAssignments?.length) {
     redirectWithMessage(
@@ -291,6 +372,7 @@ export async function assignEvaluators(formData: FormData) {
 
   if (assignmentError) {
     console.error("Erro ao atribuir avaliadores:", {
+      submissionId,
       message: assignmentError.message,
       details: assignmentError.details,
       hint: assignmentError.hint,
@@ -303,18 +385,29 @@ export async function assignEvaluators(formData: FormData) {
     );
   }
 
-  const { error: updateSubmissionError } = await supabase
-    .from("submissions")
-    .update({
-      status: "under_evaluation",
-    })
-    .eq("id", submissionId)
-    .eq("status", "approved_for_evaluation");
+  const {
+    data: updatedSubmission,
+    error: updateSubmissionError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .update({
+          status: "under_evaluation",
+        })
+        .eq("id", submissionId)
+        .eq("status", "approved_for_evaluation")
+        .select("id, status")
+        .maybeSingle(),
+    "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
+    STATUS_UPDATE_TIMEOUT_MS
+  );
 
   if (updateSubmissionError) {
     console.error(
       "Erro ao atualizar status da submissão:",
       {
+        submissionId,
         message: updateSubmissionError.message,
         details: updateSubmissionError.details,
         hint: updateSubmissionError.hint,
@@ -325,6 +418,13 @@ export async function assignEvaluators(formData: FormData) {
     redirectWithMessage(
       "erro",
       "Os avaliadores foram atribuídos, mas não foi possível atualizar o status da submissão."
+    );
+  }
+
+  if (!updatedSubmission) {
+    redirectWithMessage(
+      "erro",
+      "Os avaliadores foram atribuídos, mas o status da submissão já havia sido alterado. Atualize a página."
     );
   }
 
@@ -383,6 +483,17 @@ export async function assignReplacementEvaluator(
       .maybeSingle();
 
   if (submissionError || !submission) {
+    console.error(
+      "Erro ao consultar submissão para substituição:",
+      {
+        submissionId,
+        message: submissionError?.message,
+        details: submissionError?.details,
+        hint: submissionError?.hint,
+        code: submissionError?.code,
+      }
+    );
+
     redirectWithMessage(
       "erro",
       "A submissão não foi encontrada."
@@ -413,6 +524,18 @@ export async function assignReplacementEvaluator(
     declinedAssignmentError ||
     !declinedAssignment
   ) {
+    console.error(
+      "Erro ao localizar avaliação recusada:",
+      {
+        submissionId,
+        declinedAssignmentId,
+        message: declinedAssignmentError?.message,
+        details: declinedAssignmentError?.details,
+        hint: declinedAssignmentError?.hint,
+        code: declinedAssignmentError?.code,
+      }
+    );
+
     redirectWithMessage(
       "erro",
       "A avaliação recusada não foi localizada."
@@ -463,6 +586,8 @@ export async function assignReplacementEvaluator(
     console.error(
       "Erro ao atribuir avaliador substituto:",
       {
+        submissionId,
+        evaluatorId,
         message: insertError.message,
         details: insertError.details,
         hint: insertError.hint,
@@ -476,19 +601,30 @@ export async function assignReplacementEvaluator(
     );
   }
 
-  const { error: cancelDeclinedError } =
-    await supabase
-      .from("evaluation_assignments")
-      .update({
-        status: "cancelled",
-      })
-      .eq("id", declinedAssignmentId)
-      .eq("status", "declined");
+  const {
+    data: cancelledDeclinedAssignment,
+    error: cancelDeclinedError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("evaluation_assignments")
+        .update({
+          status: "cancelled",
+        })
+        .eq("id", declinedAssignmentId)
+        .eq("status", "declined")
+        .select("id, status")
+        .maybeSingle(),
+    "A tentativa de finalizar a avaliação recusada demorou mais que o esperado.",
+    STATUS_UPDATE_TIMEOUT_MS
+  );
 
   if (cancelDeclinedError) {
     console.error(
       "Erro ao finalizar avaliação recusada:",
       {
+        submissionId,
+        declinedAssignmentId,
         message: cancelDeclinedError.message,
         details: cancelDeclinedError.details,
         hint: cancelDeclinedError.hint,
@@ -502,13 +638,55 @@ export async function assignReplacementEvaluator(
     );
   }
 
-  await supabase
-    .from("submissions")
-    .update({
-      status: "under_evaluation",
-    })
-    .eq("id", submissionId)
-    .eq("status", "evaluator_replacement_required");
+  if (!cancelledDeclinedAssignment) {
+    redirectWithMessage(
+      "erro",
+      "O substituto foi atribuído, mas a avaliação recusada já havia sido alterada. Atualize a página."
+    );
+  }
+
+  const {
+    data: updatedSubmission,
+    error: updateSubmissionError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .update({
+          status: "under_evaluation",
+        })
+        .eq("id", submissionId)
+        .eq("status", "evaluator_replacement_required")
+        .select("id, status")
+        .maybeSingle(),
+    "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
+    STATUS_UPDATE_TIMEOUT_MS
+  );
+
+  if (updateSubmissionError) {
+    console.error(
+      "Erro ao atualizar submissão após substituição:",
+      {
+        submissionId,
+        message: updateSubmissionError.message,
+        details: updateSubmissionError.details,
+        hint: updateSubmissionError.hint,
+        code: updateSubmissionError.code,
+      }
+    );
+
+    redirectWithMessage(
+      "erro",
+      "O substituto foi atribuído, mas não foi possível atualizar o status da submissão."
+    );
+  }
+
+  if (!updatedSubmission) {
+    redirectWithMessage(
+      "erro",
+      "O substituto foi atribuído, mas o status da submissão já havia sido alterado. Atualize a página."
+    );
+  }
 
   await sendEvaluationAssignedEmail({
     evaluator,
@@ -555,6 +733,17 @@ export async function assignThirdEvaluator(
       .maybeSingle();
 
   if (submissionError || !submission) {
+    console.error(
+      "Erro ao consultar submissão para terceiro avaliador:",
+      {
+        submissionId,
+        message: submissionError?.message,
+        details: submissionError?.details,
+        hint: submissionError?.hint,
+        code: submissionError?.code,
+      }
+    );
+
     redirectWithMessage(
       "erro",
       "A submissão não foi encontrada."
@@ -597,6 +786,8 @@ export async function assignThirdEvaluator(
     console.error(
       "Erro ao atribuir terceiro avaliador:",
       {
+        submissionId,
+        evaluatorId,
         message: insertError.message,
         details: insertError.details,
         hint: insertError.hint,
@@ -610,13 +801,48 @@ export async function assignThirdEvaluator(
     );
   }
 
-  await supabase
-    .from("submissions")
-    .update({
-      status: "under_evaluation",
-    })
-    .eq("id", submissionId)
-    .eq("status", "third_evaluator_required");
+  const {
+    data: updatedSubmission,
+    error: updateSubmissionError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .update({
+          status: "under_evaluation",
+        })
+        .eq("id", submissionId)
+        .eq("status", "third_evaluator_required")
+        .select("id, status")
+        .maybeSingle(),
+    "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
+    STATUS_UPDATE_TIMEOUT_MS
+  );
+
+  if (updateSubmissionError) {
+    console.error(
+      "Erro ao atualizar submissão após terceiro avaliador:",
+      {
+        submissionId,
+        message: updateSubmissionError.message,
+        details: updateSubmissionError.details,
+        hint: updateSubmissionError.hint,
+        code: updateSubmissionError.code,
+      }
+    );
+
+    redirectWithMessage(
+      "erro",
+      "O terceiro avaliador foi atribuído, mas não foi possível atualizar o status da submissão."
+    );
+  }
+
+  if (!updatedSubmission) {
+    redirectWithMessage(
+      "erro",
+      "O terceiro avaliador foi atribuído, mas o status da submissão já havia sido alterado. Atualize a página."
+    );
+  }
 
   await sendEvaluationAssignedEmail({
     evaluator,

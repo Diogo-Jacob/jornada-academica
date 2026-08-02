@@ -1,6 +1,8 @@
+import type { ComponentType } from "react";
 import {
   Megaphone,
   Presentation,
+  XCircle,
 } from "lucide-react";
 import {
   Card,
@@ -13,25 +15,24 @@ type FinalResultCardProps = {
   canShowResult?: boolean;
 };
 
+type FinalResult = {
+  title: string;
+  description: string;
+  icon: ComponentType<{
+    className?: string;
+  }>;
+  className: string;
+};
+
 function getFinalResult(status: string) {
-  const results: Record<
-    string,
-    {
-      title: string;
-      description: string;
-      icon: React.ComponentType<{
-        className?: string;
-      }>;
-      className: string;
-    }
-  > = {
+  const results: Record<string, FinalResult> = {
     selected_oral: {
       title: "Selecionado para apresentação oral",
       description:
         "Parabéns! Seu trabalho foi selecionado para apresentação oral.",
       icon: Presentation,
       className:
-        "border-green-600/30 bg-green-600/10 text-green-900",
+        "border-green-300 bg-green-50 text-green-900",
     },
     selected_banner: {
       title: "Selecionado para banner",
@@ -39,7 +40,15 @@ function getFinalResult(status: string) {
         "Parabéns! Seu trabalho foi selecionado para apresentação em banner.",
       icon: Megaphone,
       className:
-        "border-blue-600/30 bg-blue-600/10 text-blue-900",
+        "border-blue-300 bg-blue-50 text-blue-900",
+    },
+    not_selected: {
+      title: "Não selecionado",
+      description:
+        "Seu trabalho foi avaliado, mas não ficou entre os selecionados para apresentação oral ou banner.",
+      icon: XCircle,
+      className:
+        "border-red-300 bg-red-50 text-red-900",
     },
   };
 
@@ -62,7 +71,7 @@ export function FinalResultCard({
   if (compact) {
     return (
       <div
-        className={`mt-3 rounded-lg border p-3 text-sm ${result.className}`}
+        className={`mt-3 rounded-2xl border p-3 text-sm ${result.className}`}
       >
         <div className="flex items-center gap-2 font-medium">
           <Icon className="size-4" />
@@ -73,10 +82,12 @@ export function FinalResultCard({
   }
 
   return (
-    <Card className={result.className}>
+    <Card
+      className={`overflow-hidden rounded-[2rem] shadow-sm ${result.className}`}
+    >
       <CardContent className="p-5">
         <div className="flex gap-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-background/70">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/70">
             <Icon className="size-5" />
           </div>
 

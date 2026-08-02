@@ -22,7 +22,7 @@ export function DeleteDraftButton() {
         </>
       ) : (
         <>
-          <Trash2 />
+          <Trash2 className="size-4" />
           Excluir
         </>
       )}

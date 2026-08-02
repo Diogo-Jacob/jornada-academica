@@ -2,18 +2,47 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 const MAX_PDF_SIZE = 5 * 1024 * 1024;
 const PDF_MIME_TYPE = "application/pdf";
 const STORAGE_BUCKET = "submission-files";
+
 const MIN_TOTAL_AUTHORS = 2;
 const MAX_TOTAL_AUTHORS = 7;
+
+const DATABASE_TIMEOUT_MS = 20_000;
+const UPLOAD_TIMEOUT_MS = 45_000;
 
 function redirectWithError(message: string): never {
   redirect(
     `/aluno/trabalhos/novo?erro=${encodeURIComponent(message)}`
   );
+}
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = DATABASE_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 async function validatePdfFile(
@@ -160,34 +189,9 @@ export async function createSubmission(formData: FormData) {
     );
   }
 
-  const supabase = await createClient();
+  const { profile, supabase } = await getCurrentUser();
 
-  const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
-
-  const userId = claimsData?.claims?.sub;
-
-  if (claimsError || !userId) {
-    redirect("/login");
-  }
-
-  const {
-    data: profile,
-    error: profileError,
-  } = await supabase
-    .from("profiles")
-    .select("id, role, is_active")
-    .eq("id", userId)
-    .single();
-
-  if (
-    profileError ||
-    !profile ||
-    profile.role !== "student" ||
-    !profile.is_active
-  ) {
+  if (profile.role !== "student") {
     redirectWithError(
       "Seu perfil não possui permissão para criar submissões."
     );
@@ -196,26 +200,37 @@ export async function createSubmission(formData: FormData) {
   const {
     data: event,
     error: eventError,
-  } = await supabase
-    .from("events")
-    .select(`
-      id,
-      status,
-      submission_starts_at,
-      submission_ends_at
-    `)
-    .in("status", [
-      "published",
-      "submissions_open",
-    ])
-    .eq("is_public", true)
-    .order("year", {
-      ascending: false,
-    })
-    .limit(1)
-    .maybeSingle();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("events")
+        .select(`
+          id,
+          status,
+          submission_starts_at,
+          submission_ends_at
+        `)
+        .in("status", [
+          "published",
+          "submissions_open",
+        ])
+        .eq("is_public", true)
+        .order("year", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle(),
+    "A consulta da edição disponível demorou mais que o esperado."
+  );
 
   if (eventError || !event) {
+    console.error("Erro ao buscar evento para criação de submissão:", {
+      message: eventError?.message,
+      details: eventError?.details,
+      hint: eventError?.hint,
+      code: eventError?.code,
+    });
+
     redirectWithError(
       "Nenhuma edição disponível para submissão foi encontrada."
     );
@@ -226,15 +241,28 @@ export async function createSubmission(formData: FormData) {
   const {
     data: category,
     error: categoryError,
-  } = await supabase
-    .from("submission_categories")
-    .select("id, name")
-    .eq("id", categoryId)
-    .eq("event_id", event.id)
-    .eq("is_active", true)
-    .maybeSingle();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submission_categories")
+        .select("id, name")
+        .eq("id", categoryId)
+        .eq("event_id", event.id)
+        .eq("is_active", true)
+        .maybeSingle(),
+    "A validação da categoria demorou mais que o esperado."
+  );
 
   if (categoryError || !category) {
+    console.error("Erro ao validar categoria de submissão:", {
+      categoryId,
+      eventId: event.id,
+      message: categoryError?.message,
+      details: categoryError?.details,
+      hint: categoryError?.hint,
+      code: categoryError?.code,
+    });
+
     redirectWithError(
       "A categoria selecionada não é válida."
     );
@@ -280,24 +308,31 @@ export async function createSubmission(formData: FormData) {
   const {
     data: submission,
     error: submissionError,
-  } = await supabase
-    .from("submissions")
-    .insert({
-      event_id: event.id,
-      owner_user_id: userId,
-      category_id: category.id,
-      title,
-      status: "draft",
-      requires_ethics_approval:
-        requiresEthicsApproval,
-      ethics_answered_at: acceptedAt,
-      total_authors: totalAuthors,
-    })
-    .select("id")
-    .single();
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .insert({
+          event_id: event.id,
+          owner_user_id: profile.id,
+          category_id: category.id,
+          title,
+          status: "draft",
+          requires_ethics_approval:
+            requiresEthicsApproval,
+          ethics_answered_at: acceptedAt,
+          total_authors: totalAuthors,
+        })
+        .select("id")
+        .maybeSingle(),
+    "A criação do rascunho demorou mais que o esperado."
+  );
 
   if (submissionError || !submission) {
     console.error("Erro ao criar submissão:", {
+      userId: profile.id,
+      eventId: event.id,
+      categoryId: category.id,
       message: submissionError?.message,
       details: submissionError?.details,
       hint: submissionError?.hint,
@@ -314,16 +349,20 @@ export async function createSubmission(formData: FormData) {
 
   try {
     const { error: declarationsError } =
-      await supabase
-        .from("submission_declarations")
-        .insert({
-          submission_id: submissionId,
-          accepted_general_terms: true,
-          accepted_ethics_terms: true,
-          general_terms_accepted_at: acceptedAt,
-          ethics_terms_accepted_at: acceptedAt,
-          accepted_by: userId,
-        });
+      await withTimeout(
+        async () =>
+          await supabase
+            .from("submission_declarations")
+            .insert({
+              submission_id: submissionId,
+              accepted_general_terms: true,
+              accepted_ethics_terms: true,
+              general_terms_accepted_at: acceptedAt,
+              ethics_terms_accepted_at: acceptedAt,
+              accepted_by: profile.id,
+            }),
+        "O registro das declarações demorou mais que o esperado."
+      );
 
     if (declarationsError) {
       throw new Error(
@@ -337,20 +376,27 @@ export async function createSubmission(formData: FormData) {
     ) {
       const fileId = crypto.randomUUID();
 
-      uploadedEthicsPath =
+      const ethicsStoragePath =
         `${submissionId}/ethics_approval/${fileId}.pdf`;
 
+      uploadedEthicsPath = ethicsStoragePath;
+
       const { error: uploadError } =
-        await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(
-            uploadedEthicsPath,
-            ethicsApprovalFile,
-            {
-              contentType: PDF_MIME_TYPE,
-              upsert: false,
-            }
-          );
+        await withTimeout(
+          async () =>
+            await supabase.storage
+              .from(STORAGE_BUCKET)
+              .upload(
+                ethicsStoragePath,
+                ethicsApprovalFile,
+                {
+                  contentType: PDF_MIME_TYPE,
+                  upsert: false,
+                }
+              ),
+          "O envio do parecer do CEP demorou mais que o esperado. Verifique sua conexão e tente novamente.",
+          UPLOAD_TIMEOUT_MS
+        );
 
       if (uploadError) {
         throw new Error(
@@ -358,49 +404,48 @@ export async function createSubmission(formData: FormData) {
         );
       }
 
-      const { error: fileRecordError } =
-        await supabase
-          .from("submission_files")
-          .insert({
-            submission_id: submissionId,
-            file_type: "ethics_approval",
-            storage_path: uploadedEthicsPath,
-            original_filename:
-              ethicsApprovalFile.name,
-            mime_type: PDF_MIME_TYPE,
-            size_bytes: ethicsApprovalFile.size,
-            version_number: 1,
-            is_current: true,
-            uploaded_by: userId,
-          });
-
-      if (fileRecordError) {
-        throw new Error(
-          `Falha ao registrar o parecer do CEP: ${fileRecordError.message}`
+      const { data: savedFile, error: fileRecordError } =
+        await withTimeout(
+          async () =>
+            await supabase
+              .from("submission_files")
+              .insert({
+                submission_id: submissionId,
+                file_type: "ethics_approval",
+                storage_path: ethicsStoragePath,
+                original_filename:
+                  ethicsApprovalFile.name,
+                mime_type: PDF_MIME_TYPE,
+                size_bytes: ethicsApprovalFile.size,
+                version_number: 1,
+                is_current: true,
+                uploaded_by: profile.id,
+              })
+              .select("id")
+              .maybeSingle(),
+          "O registro do parecer do CEP demorou mais que o esperado."
         );
-      }
 
-      const {
-        data: savedFile,
-        error: confirmationError,
-      } = await supabase
-        .from("submission_files")
-        .select("id")
-        .eq("submission_id", submissionId)
-        .eq("file_type", "ethics_approval")
-        .eq("is_current", true)
-        .maybeSingle();
-
-      if (confirmationError || !savedFile) {
+      if (fileRecordError || !savedFile) {
         throw new Error(
-          "O parecer foi enviado, mas não pôde ser confirmado no banco de dados."
+          fileRecordError
+            ? `Falha ao registrar o parecer do CEP: ${fileRecordError.message}`
+            : "O parecer foi enviado, mas não pôde ser confirmado no banco de dados."
         );
       }
     }
   } catch (error) {
     console.error(
       "Erro ao concluir o rascunho:",
-      error
+      {
+        submissionId,
+        userId: profile.id,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido",
+        error,
+      }
     );
 
     if (uploadedEthicsPath) {
@@ -412,7 +457,13 @@ export async function createSubmission(formData: FormData) {
       if (cleanupStorageError) {
         console.error(
           "Erro ao limpar arquivo incompleto:",
-          cleanupStorageError
+          {
+            submissionId,
+            uploadedEthicsPath,
+            message: cleanupStorageError.message,
+            status: cleanupStorageError.status,
+            statusCode: cleanupStorageError.statusCode,
+          }
         );
       }
     }
@@ -422,13 +473,20 @@ export async function createSubmission(formData: FormData) {
         .from("submissions")
         .delete()
         .eq("id", submissionId)
-        .eq("owner_user_id", userId)
+        .eq("owner_user_id", profile.id)
         .eq("status", "draft");
 
     if (cleanupDatabaseError) {
       console.error(
         "Erro ao excluir rascunho incompleto:",
-        cleanupDatabaseError
+        {
+          submissionId,
+          userId: profile.id,
+          message: cleanupDatabaseError.message,
+          details: cleanupDatabaseError.details,
+          hint: cleanupDatabaseError.hint,
+          code: cleanupDatabaseError.code,
+        }
       );
     }
 

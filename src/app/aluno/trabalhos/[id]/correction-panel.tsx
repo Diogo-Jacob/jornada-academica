@@ -41,13 +41,11 @@ type CorrectionSubmission = {
 };
 
 function formatDate(date: string) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle: "short",
-      timeStyle: "short",
-    }
-  ).format(new Date(date));
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(date));
 }
 
 function formatOptionalDate(date: string | null) {
@@ -86,8 +84,7 @@ function getCorrectionPeriodStatus(eventValue: EventData) {
   ) {
     return {
       isOpen: false,
-      title:
-        "O período de submissões ainda não iniciou",
+      title: "O período de submissões ainda não iniciou",
       description: `O reenvio de correções estará disponível a partir de ${formatOptionalDate(
         event.submission_starts_at
       )}.`,
@@ -100,8 +97,7 @@ function getCorrectionPeriodStatus(eventValue: EventData) {
   ) {
     return {
       isOpen: false,
-      title:
-        "O período de submissões foi encerrado",
+      title: "O período de submissões foi encerrado",
       description: `O prazo para reenviar correções encerrou em ${formatOptionalDate(
         event.submission_ends_at
       )}.`,
@@ -149,7 +145,13 @@ async function getCorrectionSubmission(
   if (error) {
     console.error(
       "Erro ao carregar orientação de correção:",
-      error
+      {
+        submissionId,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      }
     );
 
     return null;
@@ -168,31 +170,25 @@ export async function CorrectionNoticePanel({
     return null;
   }
 
-  if (
-    submission.status ===
-    "resubmitted"
-  ) {
+  if (submission.status === "resubmitted") {
     return (
-      <Card className="border-blue-600/30 bg-blue-600/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="size-5" />
+      <Card className="overflow-hidden rounded-[2rem] border-blue-200 bg-blue-50 shadow-sm">
+        <CardHeader className="border-b border-blue-100 bg-blue-50">
+          <CardTitle className="flex items-center gap-2 text-blue-950">
+            <CheckCircle2 className="size-5 text-blue-700" />
             Trabalho corrigido reenviado
           </CardTitle>
         </CardHeader>
 
-        <CardContent>
-          <p className="text-sm leading-6 text-muted-foreground">
-            As correções foram reenviadas e o
-            trabalho está aguardando uma nova
-            conferência documental pela Comissão
-            Científica.
+        <CardContent className="p-6">
+          <p className="text-sm leading-6 text-blue-900">
+            As correções foram reenviadas e o trabalho está aguardando uma nova
+            conferência documental pela Comissão Científica.
           </p>
 
           {submission.protocol && (
-            <p className="mt-3 text-sm font-medium">
-              Protocolo:{" "}
-              {submission.protocol}
+            <p className="mt-3 text-sm font-medium text-blue-950">
+              Protocolo: {submission.protocol}
             </p>
           )}
         </CardContent>
@@ -200,35 +196,35 @@ export async function CorrectionNoticePanel({
     );
   }
 
-  if (
-    submission.status !==
-    "correction_requested"
-  ) {
+  if (submission.status !== "correction_requested") {
     return null;
   }
 
   return (
-    <Card className="border-amber-600/40 bg-amber-500/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="size-5" />
+    <Card
+      id="correcao-section"
+      className="scroll-mt-28 overflow-hidden rounded-[2rem] border-amber-200 bg-amber-50 shadow-sm"
+    >
+      <CardHeader className="border-b border-amber-100 bg-amber-50">
+        <CardTitle className="flex items-center gap-2 text-amber-950">
+          <AlertTriangle className="size-5 text-amber-700" />
           Correções solicitadas
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-5">
-        <div className="rounded-lg border border-amber-600/30 bg-background p-4">
-          <p className="font-medium">
+      <CardContent className="space-y-5 p-6">
+        <div className="rounded-3xl border border-amber-200 bg-white p-5">
+          <p className="font-medium text-[#102a3d]">
             Orientações da Comissão Científica
           </p>
 
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-6">
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#4a6678]">
             {submission.document_review_notes ||
               "A Comissão solicitou alterações neste trabalho. Revise os autores e os documentos enviados."}
           </p>
 
           {submission.document_reviewed_at && (
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p className="mt-4 text-xs text-[#5f7d90]">
               Solicitação registrada em{" "}
               {formatDate(
                 submission.document_reviewed_at
@@ -237,17 +233,15 @@ export async function CorrectionNoticePanel({
           )}
         </div>
 
-        <div className="rounded-lg border p-4">
-          <p className="font-medium">
+        <div className="rounded-3xl border border-[#d9e8ef] bg-white p-5">
+          <p className="font-medium text-[#102a3d]">
             Como realizar a correção
           </p>
 
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Altere os autores ou substitua os
-            documentos necessários nos formulários
-            desta página. Depois de conferir todas
-            as informações, confirme o reenvio no
-            final da página.
+          <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
+            Altere os autores ou substitua os documentos necessários nos
+            formulários desta página. Depois de conferir todas as informações,
+            confirme o reenvio no final da página.
           </p>
         </div>
       </CardContent>
@@ -274,23 +268,32 @@ export async function CorrectionConfirmationPanel({
     );
 
   return (
-    <Card className="border-amber-600/40 bg-amber-500/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <RotateCcw className="size-5" />
+    <Card
+      id="confirmacao-correcao-section"
+      className="scroll-mt-28 overflow-hidden rounded-[2rem] border-amber-200 bg-white shadow-sm"
+    >
+      <CardHeader className="border-b border-[#d9e8ef] bg-[#f7fbfd]">
+        <CardTitle className="flex items-center gap-2 text-[#102a3d]">
+          <RotateCcw className="size-5 text-[#245b7a]" />
           Confirmação de correção
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 p-6">
         <div
           className={
             correctionPeriod.isOpen
-              ? "rounded-lg border border-green-600/30 bg-green-600/5 p-4"
-              : "rounded-lg border border-destructive/30 bg-destructive/10 p-4"
+              ? "rounded-3xl border border-green-200 bg-green-50 p-5"
+              : "rounded-3xl border border-red-200 bg-red-50 p-5"
           }
         >
-          <p className="flex items-center gap-2 font-medium">
+          <p
+            className={
+              correctionPeriod.isOpen
+                ? "flex items-center gap-2 font-medium text-green-900"
+                : "flex items-center gap-2 font-medium text-red-900"
+            }
+          >
             {correctionPeriod.isOpen ? (
               <CheckCircle2 className="size-4" />
             ) : (
@@ -300,16 +303,20 @@ export async function CorrectionConfirmationPanel({
             {correctionPeriod.title}
           </p>
 
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          <p
+            className={
+              correctionPeriod.isOpen
+                ? "mt-2 text-sm leading-6 text-green-800"
+                : "mt-2 text-sm leading-6 text-red-800"
+            }
+          >
             {correctionPeriod.description}
           </p>
         </div>
 
         {correctionPeriod.isOpen ? (
           <form
-            action={
-              resubmitCorrectedSubmission
-            }
+            action={resubmitCorrectedSubmission}
             className="space-y-5"
           >
             <input
@@ -318,39 +325,40 @@ export async function CorrectionConfirmationPanel({
               value={submission.id}
             />
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-4">
+            <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-[#d9e8ef] bg-[#f7fbfd] p-5 transition-colors hover:bg-[#eef7fa]">
               <input
                 type="checkbox"
                 name="confirmResubmission"
-                className="mt-1 size-4 shrink-0"
+                className="mt-1 size-4 shrink-0 accent-[#245b7a]"
                 required
               />
 
-              <span className="text-sm leading-6">
-                Confirmo que revisei as orientações
-                da Comissão Científica e realizei as
-                correções necessárias no trabalho.
+              <span className="text-sm leading-6 text-[#4a6678]">
+                Confirmo que revisei as orientações da Comissão Científica e
+                realizei as correções necessárias no trabalho.
               </span>
             </label>
 
-            <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Após o reenvio, o trabalho voltará para nova conferência documental.
+            <div className="flex flex-col gap-3 border-t border-[#d9e8ef] pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm leading-6 text-[#5f7d90]">
+                Após o reenvio, o trabalho voltará para nova conferência
+                documental.
               </p>
 
               <Button
                 type="submit"
                 size="lg"
+                className="bg-[#245b7a] hover:bg-[#173f59]"
               >
-                <RotateCcw />
+                <RotateCcw className="size-4" />
                 Reenviar trabalho corrigido
               </Button>
             </div>
           </form>
         ) : (
-          <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-            O botão de reenvio foi bloqueado porque
-            o prazo de submissões não está aberto.
+          <div className="rounded-3xl border border-dashed border-[#d9e8ef] bg-[#f7fbfd] p-5 text-sm leading-6 text-[#5f7d90]">
+            O botão de reenvio foi bloqueado porque o prazo de submissões não
+            está aberto.
           </div>
         )}
       </CardContent>

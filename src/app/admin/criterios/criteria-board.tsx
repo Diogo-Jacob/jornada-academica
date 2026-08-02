@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   CheckCircle2,
   ClipboardList,
   GripVertical,
+  Loader2,
   Minus,
   Plus,
   Save,
@@ -115,6 +117,7 @@ function DecimalScoreInput({
         type="button"
         variant="ghost"
         size="icon"
+        aria-label="Diminuir pontuação máxima"
         className="h-11 rounded-none text-[#245b7a] hover:bg-[#eef7fa] hover:text-[#173f59]"
         onClick={() => changeByStep(-1)}
       >
@@ -156,12 +159,81 @@ function DecimalScoreInput({
         type="button"
         variant="ghost"
         size="icon"
+        aria-label="Aumentar pontuação máxima"
         className="h-11 rounded-none text-[#245b7a] hover:bg-[#eef7fa] hover:text-[#173f59]"
         onClick={() => changeByStep(1)}
       >
         <Plus className="size-4" />
       </Button>
     </div>
+  );
+}
+
+function SaveOrderButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      variant="outline"
+      disabled={pending}
+      className="border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa] disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          Salvando ordem...
+        </>
+      ) : (
+        <>
+          <Save className="size-4" />
+          Salvar ordem atual
+        </>
+      )}
+    </Button>
+  );
+}
+
+function SaveCriterionButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      disabled={pending}
+      className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59] disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          Salvando...
+        </>
+      ) : (
+        "Salvar alterações"
+      )}
+    </Button>
+  );
+}
+
+function ConfirmDisableCriterionButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      variant="destructive"
+      disabled={pending}
+      className="disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          Desativando...
+        </>
+      ) : (
+        "Confirmar desativação"
+      )}
+    </Button>
   );
 }
 
@@ -182,6 +254,10 @@ export function CriteriaBoard({
     confirmingDeletionCriterionId,
     setConfirmingDeletionCriterionId,
   ] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrderedCriteria(criteria);
+  }, [criteria]);
 
   const orderedCriterionIds = useMemo(
     () =>
@@ -268,14 +344,7 @@ export function CriteriaBoard({
             value={orderedCriterionIds}
           />
 
-          <Button
-            type="submit"
-            variant="outline"
-            className="border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa]"
-          >
-            <Save className="size-4" />
-            Salvar ordem atual
-          </Button>
+          <SaveOrderButton />
         </form>
       </div>
 
@@ -287,20 +356,25 @@ export function CriteriaBoard({
           const isConfirmingDeletion =
             confirmingDeletionCriterionId === criterion.id;
 
+          const canDrag =
+            !isEditing && !isConfirmingDeletion;
+
           return (
             <div
               key={criterion.id}
-              draggable
-              onDragStart={() =>
-                setDraggedCriterionId(criterion.id)
-              }
+              draggable={canDrag}
+              onDragStart={() => {
+                if (canDrag) {
+                  setDraggedCriterionId(criterion.id);
+                }
+              }}
               onDragEnd={() =>
                 setDraggedCriterionId(null)
               }
               onDragOver={(event) => {
                 event.preventDefault();
 
-                if (draggedCriterionId) {
+                if (draggedCriterionId && canDrag) {
                   moveCriterion(
                     draggedCriterionId,
                     criterion.id
@@ -318,7 +392,8 @@ export function CriteriaBoard({
                   <button
                     type="button"
                     title="Arraste para alterar a ordem"
-                    className="mt-1 h-fit cursor-grab rounded-2xl border border-[#d9e8ef] bg-white p-2 text-[#5f7d90] transition hover:bg-[#eef7fa] hover:text-[#245b7a] active:cursor-grabbing"
+                    disabled={!canDrag}
+                    className="mt-1 h-fit cursor-grab rounded-2xl border border-[#d9e8ef] bg-white p-2 text-[#5f7d90] transition hover:bg-[#eef7fa] hover:text-[#245b7a] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <GripVertical className="size-5" />
                   </button>
@@ -387,7 +462,7 @@ export function CriteriaBoard({
                     }}
                   >
                     <Trash2 className="size-4" />
-                    Excluir
+                    Desativar
                   </Button>
                 </div>
               </div>
@@ -403,35 +478,41 @@ export function CriteriaBoard({
                     máxima do critério.
                   </p>
 
-                  <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-                    {scoreOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        className="rounded-2xl border border-[#d9e8ef] bg-white p-4"
-                      >
-                        <p className="text-xs leading-5 text-[#5f7d90]">
-                          {option.label}
-                        </p>
+                  {!scoreOptions.length ? (
+                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
+                      Nenhuma opção de pontuação ativa foi encontrada.
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                      {scoreOptions.map((option) => (
+                        <div
+                          key={option.id}
+                          className="rounded-2xl border border-[#d9e8ef] bg-white p-4"
+                        >
+                          <p className="text-xs leading-5 text-[#5f7d90]">
+                            {option.label}
+                          </p>
 
-                        <p className="mt-2 font-semibold text-[#102a3d]">
-                          {formatNumber(
-                            calculateScore(
-                              Number(criterion.max_score),
+                          <p className="mt-2 font-semibold text-[#102a3d]">
+                            {formatNumber(
+                              calculateScore(
+                                Number(criterion.max_score),
+                                Number(option.percentage)
+                              )
+                            )}{" "}
+                            ponto(s)
+                          </p>
+
+                          <p className="mt-1 text-xs text-[#5f7d90]">
+                            {formatNumber(
                               Number(option.percentage)
-                            )
-                          )}{" "}
-                          ponto(s)
-                        </p>
-
-                        <p className="mt-1 text-xs text-[#5f7d90]">
-                          {formatNumber(
-                            Number(option.percentage)
-                          )}
-                          %
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                            )}
+                            %
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -488,12 +569,7 @@ export function CriteriaBoard({
                       </div>
 
                       <div className="flex items-end">
-                        <Button
-                          type="submit"
-                          className="h-11 w-full bg-[#245b7a] hover:bg-[#173f59]"
-                        >
-                          Salvar alterações
-                        </Button>
+                        <SaveCriterionButton />
                       </div>
                     </div>
 
@@ -524,15 +600,16 @@ export function CriteriaBoard({
                 <div className="border-t border-red-200 bg-red-50 p-5">
                   <div className="rounded-3xl border border-red-200 bg-white p-5">
                     <h3 className="font-semibold text-red-800">
-                      Confirmar exclusão
+                      Confirmar desativação
                     </h3>
 
                     <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-                      Tem certeza que deseja excluir o critério{" "}
+                      Tem certeza que deseja desativar o critério{" "}
                       <strong className="text-[#102a3d]">
                         {criterion.name}
                       </strong>
-                      ? Essa ação não poderá ser desfeita.
+                      ? Ele deixará de aparecer para os avaliadores, mas o
+                      histórico de avaliações anteriores será preservado.
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -543,12 +620,7 @@ export function CriteriaBoard({
                           value={criterion.id}
                         />
 
-                        <Button
-                          type="submit"
-                          variant="destructive"
-                        >
-                          Confirmar exclusão
-                        </Button>
+                        <ConfirmDisableCriterionButton />
                       </form>
 
                       <Button

@@ -194,8 +194,11 @@ export async function startDocumentReview(
           .in("status", [
             "submitted",
             "resubmitted",
-          ]),
-      "A tentativa de iniciar a conferência documental demorou mais que o esperado."
+          ])
+          .select("id, status")
+          .maybeSingle(),
+      "A tentativa de iniciar a conferência documental demorou mais que o esperado.",
+      15_000
     );
   } catch (error) {
     console.error("Timeout ao iniciar conferência documental:", {
@@ -230,6 +233,14 @@ export async function startDocumentReview(
       submissionId,
       "erro",
       "Não foi possível iniciar a conferência documental."
+    );
+  }
+
+  if (!result.data) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A conferência não pôde ser iniciada porque a submissão já foi alterada. Atualize a página e tente novamente."
     );
   }
 
@@ -318,8 +329,11 @@ export async function requestCorrections(
           .eq(
             "status",
             "under_document_review"
-          ),
-      "A tentativa de solicitar correções demorou mais que o esperado."
+          )
+          .select("id, status")
+          .maybeSingle(),
+      "A tentativa de solicitar correções demorou mais que o esperado.",
+      15_000
     );
   } catch (error) {
     console.error("Timeout ao solicitar correções:", {
@@ -357,6 +371,14 @@ export async function requestCorrections(
     );
   }
 
+  if (!result.data) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "As correções não puderam ser solicitadas porque a submissão já foi alterada. Atualize a página e tente novamente."
+    );
+  }
+
   const responsibleAuthor =
     await getResponsibleAuthorForEmail({
       supabase,
@@ -367,28 +389,42 @@ export async function requestCorrections(
     responsibleAuthor?.email &&
     submission.title
   ) {
-    const emailResult = await withTimeout(
-      async () =>
-        await sendEmail({
-          to: responsibleAuthor.email,
-          subject: `Correções solicitadas - ${submission.protocol ?? submission.title}`,
-          html: correctionRequestedEmail({
-            studentName:
-              responsibleAuthor.full_name ?? "Aluno(a)",
-            title: submission.title,
-            protocol: submission.protocol,
-            notes,
-            reviewedAt: formatDateTime(reviewedAt),
+    try {
+      const emailResult = await withTimeout(
+        async () =>
+          await sendEmail({
+            to: responsibleAuthor.email,
+            subject: `Correções solicitadas - ${submission.protocol ?? submission.title}`,
+            html: correctionRequestedEmail({
+              studentName:
+                responsibleAuthor.full_name ?? "Aluno(a)",
+              title: submission.title,
+              protocol: submission.protocol,
+              notes,
+              reviewedAt: formatDateTime(reviewedAt),
+            }),
           }),
-        }),
-      "O envio do e-mail de correção demorou mais que o esperado.",
-      20_000
-    );
+        "O envio do e-mail de correção demorou mais que o esperado.",
+        15_000
+      );
 
-    if (!emailResult.success) {
+      if (!emailResult.success) {
+        console.error(
+          "E-mail de correção documental não enviado:",
+          emailResult
+        );
+      }
+    } catch (emailError) {
       console.error(
-        "E-mail de correção documental não enviado:",
-        emailResult
+        "Correção solicitada, mas o envio do e-mail falhou ou demorou demais:",
+        {
+          submissionId,
+          message:
+            emailError instanceof Error
+              ? emailError.message
+              : "Erro desconhecido",
+          error: emailError,
+        }
       );
     }
   }
@@ -474,8 +510,11 @@ export async function approveForEvaluation(
           .eq(
             "status",
             "under_document_review"
-          ),
-      "A tentativa de aprovar a submissão demorou mais que o esperado."
+          )
+          .select("id, status")
+          .maybeSingle(),
+      "A tentativa de aprovar a submissão demorou mais que o esperado.",
+      15_000
     );
   } catch (error) {
     console.error("Timeout ao aprovar submissão:", {
@@ -513,6 +552,14 @@ export async function approveForEvaluation(
     );
   }
 
+  if (!result.data) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "A submissão não pôde ser aprovada porque ela já foi alterada. Atualize a página e tente novamente."
+    );
+  }
+
   const responsibleAuthor =
     await getResponsibleAuthorForEmail({
       supabase,
@@ -523,29 +570,43 @@ export async function approveForEvaluation(
     responsibleAuthor?.email &&
     submission.title
   ) {
-    const emailResult = await withTimeout(
-      async () =>
-        await sendEmail({
-          to: responsibleAuthor.email,
-          subject: `Trabalho aprovado para avaliação científica - ${
-            submission.protocol ?? submission.title
-          }`,
-          html: submissionApprovedEmail({
-            studentName:
-              responsibleAuthor.full_name ?? "Aluno(a)",
-            title: submission.title,
-            protocol: submission.protocol,
-            approvedAt: formatDateTime(reviewedAt),
+    try {
+      const emailResult = await withTimeout(
+        async () =>
+          await sendEmail({
+            to: responsibleAuthor.email,
+            subject: `Trabalho aprovado para avaliação científica - ${
+              submission.protocol ?? submission.title
+            }`,
+            html: submissionApprovedEmail({
+              studentName:
+                responsibleAuthor.full_name ?? "Aluno(a)",
+              title: submission.title,
+              protocol: submission.protocol,
+              approvedAt: formatDateTime(reviewedAt),
+            }),
           }),
-        }),
-      "O envio do e-mail de aprovação demorou mais que o esperado.",
-      20_000
-    );
+        "O envio do e-mail de aprovação demorou mais que o esperado.",
+        15_000
+      );
 
-    if (!emailResult.success) {
+      if (!emailResult.success) {
+        console.error(
+          "E-mail de aprovação documental não enviado:",
+          emailResult
+        );
+      }
+    } catch (emailError) {
       console.error(
-        "E-mail de aprovação documental não enviado:",
-        emailResult
+        "Submissão aprovada, mas o envio do e-mail falhou ou demorou demais:",
+        {
+          submissionId,
+          message:
+            emailError instanceof Error
+              ? emailError.message
+              : "Erro desconhecido",
+          error: emailError,
+        }
       );
     }
   }

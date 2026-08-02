@@ -51,7 +51,6 @@ type Submission = {
   event_id: string;
   title: string;
   protocol: string | null;
-  status: string;
   submission_categories:
     | {
         name: string;
@@ -64,13 +63,9 @@ type Submission = {
 
 type SubmissionFile = {
   id: string;
-  submission_id: string;
-  file_type: string;
   original_filename: string;
   size_bytes: number;
   version_number: number;
-  is_current: boolean;
-  created_at: string;
 };
 
 function formatAssignmentStatus(status: string) {
@@ -170,7 +165,6 @@ export default async function AvaliadorTrabalhoPage({
         event_id,
         title,
         protocol,
-        status,
 
         submission_categories (
           name
@@ -204,22 +198,23 @@ export default async function AvaliadorTrabalhoPage({
     ? categoryValue[0]
     : categoryValue;
 
-  const { data: filesData, error: filesError } =
+  const { data: anonymousFileData, error: filesError } =
     await supabase
       .from("submission_files")
       .select(`
         id,
-        submission_id,
-        file_type,
         original_filename,
         size_bytes,
-        version_number,
-        is_current,
-        created_at
+        version_number
       `)
       .eq("submission_id", submission.id)
       .eq("file_type", "anonymous")
-      .eq("is_current", true);
+      .eq("is_current", true)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
 
   if (filesError) {
     console.error(
@@ -233,15 +228,9 @@ export default async function AvaliadorTrabalhoPage({
     );
   }
 
-  const files = (filesData ?? []) as SubmissionFile[];
+  const anonymousFile = anonymousFileData;
 
-  const anonymousFile = files.find(
-    (file) =>
-      file.file_type === "anonymous" &&
-      file.is_current
-  );
-
- const canStart = assignment.status === "assigned";
+  const canStart = assignment.status === "assigned";
 
   const canDecline = assignment.status === "assigned";
 
@@ -548,21 +537,15 @@ export default async function AvaliadorTrabalhoPage({
                   </span>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-5 border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa]"
-                  asChild
+                <a
+                  href={getDownloadUrl(anonymousFile.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#b9d4df] bg-white px-3 text-sm font-medium text-[#245b7a] transition-colors hover:bg-[#eef7fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#245b7a]/30"
                 >
-                  <Link
-                    href={getDownloadUrl(
-                      anonymousFile.id
-                    )}
-                  >
-                    <Download />
-                    Baixar Trabalho
-                  </Link>
-                </Button>
+                  <Download className="size-4" />
+                  Baixar Trabalho
+                </a>
               </div>
             )}
           </CardContent>

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
+import { formatDateTimeBR } from "@/lib/formatters/date";
 import {
   ApproveForEvaluationButton,
   RequestCorrectionsButton,
@@ -205,8 +206,6 @@ function formatFileSize(size: number) {
   return `${(size / 1024).toFixed(1)} KB`;
 }
 
-import { formatDateTimeBR } from "@/lib/formatters/date";
-
 function formatScore(score: number) {
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
@@ -238,7 +237,7 @@ export default async function AdminSubmissionPage({
       profile.role
     )
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const {
@@ -1079,8 +1078,8 @@ export default async function AdminSubmissionPage({
                 </div>
 
                 <ApproveForEvaluationButton
-  disabled={!allDocumentsPresent}
-/>
+                  disabled={!allDocumentsPresent}
+                />
 
                 {!allDocumentsPresent && (
                   <p className="text-xs leading-5 text-red-700">
@@ -1366,17 +1365,15 @@ function DocumentCard({
       </div>
 
       {file && downloadUrl && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4 border-[#b9d4df] bg-white text-[#245b7a] hover:bg-[#eef7fa]"
-          asChild
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#b9d4df] bg-white px-3 text-sm font-medium text-[#245b7a] transition-colors hover:bg-[#eef7fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#245b7a]/30"
         >
-          <Link href={downloadUrl}>
-            <Download />
-            Baixar arquivo
-          </Link>
-        </Button>
+          <Download className="size-4" />
+          Baixar arquivo
+        </a>
       )}
     </div>
   );

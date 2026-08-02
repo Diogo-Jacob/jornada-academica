@@ -17,13 +17,49 @@ function redirectWithError(
   message: string
 ) {
   const destination = new URL(
-    `/aluno/trabalhos/${submissionId}`,
+    submissionId
+      ? `/aluno/trabalhos/${submissionId}`
+      : "/aluno/trabalhos",
     request.url
   );
 
   destination.searchParams.set("erro", message);
 
-  return NextResponse.redirect(destination);
+  return NextResponse.redirect(destination, {
+    status: 303,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
+function normalizeStoragePaths(storagePath: string) {
+  const decodedPath = decodeURIComponent(storagePath);
+
+  const candidates = new Set<string>();
+
+  candidates.add(storagePath);
+  candidates.add(decodedPath);
+
+  candidates.add(storagePath.replace(/^\/+/, ""));
+  candidates.add(decodedPath.replace(/^\/+/, ""));
+
+  candidates.add(storagePath.replace(`${STORAGE_BUCKET}/`, ""));
+  candidates.add(decodedPath.replace(`${STORAGE_BUCKET}/`, ""));
+
+  candidates.add(
+    storagePath
+      .replace(/^\/+/, "")
+      .replace(`${STORAGE_BUCKET}/`, "")
+  );
+
+  candidates.add(
+    decodedPath
+      .replace(/^\/+/, "")
+      .replace(`${STORAGE_BUCKET}/`, "")
+  );
+
+  return Array.from(candidates).filter(Boolean);
 }
 
 export async function GET(
@@ -47,6 +83,14 @@ export async function GET(
     const { profile, supabase } =
       await getCurrentUser();
 
+    if (!profile.is_active) {
+      return redirectWithError(
+        request,
+        submissionId,
+        "Seu usuário está inativo. Entre em contato com a organização."
+      );
+    }
+
     const {
       data: submission,
       error: submissionError,
@@ -58,10 +102,15 @@ export async function GET(
       .maybeSingle();
 
     if (submissionError) {
-      console.error(
-        "Erro ao verificar submissão:",
-        submissionError
-      );
+      console.error("Erro ao verificar submissão para download:", {
+        submissionId,
+        fileId,
+        userId: profile.id,
+        message: submissionError.message,
+        details: submissionError.details,
+        hint: submissionError.hint,
+        code: submissionError.code,
+      });
 
       return redirectWithError(
         request,
@@ -96,10 +145,15 @@ export async function GET(
       .maybeSingle();
 
     if (fileError) {
-      console.error(
-        "Erro ao consultar arquivo:",
-        fileError
-      );
+      console.error("Erro ao consultar arquivo do aluno:", {
+        submissionId,
+        fileId,
+        userId: profile.id,
+        message: fileError.message,
+        details: fileError.details,
+        hint: fileError.hint,
+        code: fileError.code,
+      });
 
       return redirectWithError(
         request,
@@ -116,43 +170,58 @@ export async function GET(
       );
     }
 
-    const {
-      data,
-      error: signedUrlError,
-    } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(
-        file.storage_path,
-        SIGNED_URL_DURATION_SECONDS,
-        {
-          download: file.original_filename,
-        }
-      );
+    const storagePaths = normalizeStoragePaths(
+      file.storage_path
+    );
 
-    if (
-      signedUrlError ||
-      !data?.signedUrl
-    ) {
-      console.error(
-        "Erro ao gerar URL assinada:",
-        signedUrlError
-      );
+    for (const storagePath of storagePaths) {
+      const {
+        data,
+        error: signedUrlError,
+      } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(
+          storagePath,
+          SIGNED_URL_DURATION_SECONDS,
+          {
+            download:
+              file.original_filename ||
+              "arquivo-submissao",
+          }
+        );
 
-      return redirectWithError(
-        request,
+      if (data?.signedUrl && !signedUrlError) {
+        return NextResponse.redirect(data.signedUrl, {
+          status: 302,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        });
+      }
+
+      console.error("Tentativa de URL assinada falhou:", {
         submissionId,
-        "Não foi possível preparar o download."
-      );
+        fileId,
+        userId: profile.id,
+        storagePath,
+        originalStoragePath: file.storage_path,
+        message: signedUrlError?.message,
+        status: signedUrlError?.status,
+        statusCode: signedUrlError?.statusCode,
+      });
     }
 
-    return NextResponse.redirect(
-      data.signedUrl
+    return redirectWithError(
+      request,
+      submissionId,
+      "Não foi possível preparar o download. O arquivo pode não existir mais no Storage."
     );
   } catch (error) {
-    console.error(
-      "Erro inesperado no download:",
-      error
-    );
+    console.error("Erro inesperado no download do aluno:", {
+      submissionId,
+      fileId,
+      error,
+    });
 
     return redirectWithError(
       request,

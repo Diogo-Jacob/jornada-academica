@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -14,7 +15,6 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 type Submission = {
@@ -77,7 +77,11 @@ function formatStudentStatus(
 ) {
   if (
     !canShowResult &&
-    ["selected_oral", "selected_banner"].includes(status)
+    [
+      "selected_oral",
+      "selected_banner",
+      "not_selected",
+    ].includes(status)
   ) {
     return "Avaliações concluídas";
   }
@@ -110,7 +114,11 @@ function getStudentStatusClass(
 ) {
   if (
     !canShowResult &&
-    ["selected_oral", "selected_banner"].includes(status)
+    [
+      "selected_oral",
+      "selected_banner",
+      "not_selected",
+    ].includes(status)
   ) {
     return "border-[#b9d4df] bg-[#eef7fa] text-[#245b7a]";
   }
@@ -160,12 +168,12 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
   }).format(new Date(date));
 }
 
 export default async function AlunoPage() {
-  const { profile } = await getCurrentUser();
-  const supabase = await createClient();
+  const { profile, supabase } = await getCurrentUser();
 
   const { data: submissionsData, error: submissionsError } =
     await supabase
@@ -192,6 +200,7 @@ export default async function AlunoPage() {
 
   if (submissionsError) {
     console.error("Erro ao carregar trabalhos do aluno:", {
+      userId: profile.id,
       message: submissionsError.message,
       details: submissionsError.details,
       hint: submissionsError.hint,
@@ -219,6 +228,7 @@ export default async function AlunoPage() {
         "result_confirmed",
         "selected_oral",
         "selected_banner",
+        "not_selected",
       ].includes(submission.status)
   );
 
@@ -230,9 +240,11 @@ export default async function AlunoPage() {
   const availableResults = submissions.filter(
     (submission) =>
       canShowFinalResult(submission) &&
-      ["selected_oral", "selected_banner"].includes(
-        submission.status
-      )
+      [
+        "selected_oral",
+        "selected_banner",
+        "not_selected",
+      ].includes(submission.status)
   );
 
   const latestSubmissions = submissions.slice(0, 5);
@@ -266,7 +278,7 @@ export default async function AlunoPage() {
                 className="bg-white text-[#102a3d] hover:bg-[#e9f4f8]"
               >
                 <Link href="/aluno/trabalhos/novo">
-                  <PlusCircle />
+                  <PlusCircle className="size-4" />
                   Criar nova submissão
                 </Link>
               </Button>
@@ -278,7 +290,7 @@ export default async function AlunoPage() {
               >
                 <Link href="/aluno/trabalhos">
                   Ver meus trabalhos
-                  <ArrowRight />
+                  <ArrowRight className="size-4" />
                 </Link>
               </Button>
             </div>
@@ -318,6 +330,13 @@ export default async function AlunoPage() {
           value={inEvaluationSubmissions.length}
           description="Trabalhos em análise pela comissão ou pareceristas."
         />
+
+        <MetricCard
+          icon={<Trophy className="size-5" />}
+          title="Resultados disponíveis"
+          value={availableResults.length}
+          description="Resultados finais já liberados para consulta."
+        />
       </section>
 
       {correctionSubmissions.length > 0 && (
@@ -340,6 +359,7 @@ export default async function AlunoPage() {
             >
               <Link href="/aluno/trabalhos">
                 Ver pendências
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
@@ -365,6 +385,7 @@ export default async function AlunoPage() {
             >
               <Link href="/aluno/trabalhos">
                 Ver todos
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           )}
@@ -383,7 +404,7 @@ export default async function AlunoPage() {
 
               <p className="mt-2 max-w-md text-sm leading-6 text-[#4a6678]">
                 Quando as submissões estiverem abertas, você poderá cadastrar
-                até dois trabalhos como autor responsável.
+                seus trabalhos científicos pela plataforma.
               </p>
 
               <Button
@@ -391,7 +412,7 @@ export default async function AlunoPage() {
                 asChild
               >
                 <Link href="/aluno/trabalhos/novo">
-                  <PlusCircle />
+                  <PlusCircle className="size-4" />
                   Criar nova submissão
                 </Link>
               </Button>
@@ -424,7 +445,7 @@ export default async function AlunoPage() {
 
                           {submission.protocol && (
                             <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
-                              {submission.protocol}
+                              Protocolo: {submission.protocol}
                             </span>
                           )}
                         </div>
@@ -454,7 +475,7 @@ export default async function AlunoPage() {
                           href={`/aluno/trabalhos/${submission.id}`}
                         >
                           Abrir
-                          <ArrowRight />
+                          <ArrowRight className="size-4" />
                         </Link>
                       </Button>
                     </div>
@@ -506,7 +527,7 @@ function HeroMetric({
 }
 
 type MetricCardProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   value: number;
   description: string;
@@ -546,7 +567,7 @@ function MetricCard({
 }
 
 type InfoPanelProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 };

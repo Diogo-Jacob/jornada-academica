@@ -51,7 +51,7 @@ export default async function AdminCriteriosPage({
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acesso-negado");
   }
 
   const { data: event, error: eventError } = await supabase
@@ -73,26 +73,25 @@ export default async function AdminCriteriosPage({
     });
   }
 
-  const { data: criteria, error: criteriaError } =
-    event
-      ? await supabase
-          .from("evaluation_criteria")
-          .select(`
-            id,
-            name,
-            description,
-            max_score,
-            display_order,
-            is_active
-          `)
-          .eq("event_id", event.id)
-          .order("display_order", {
-            ascending: true,
-          })
-      : {
-          data: null,
-          error: null,
-        };
+  const { data: criteria, error: criteriaError } = event
+    ? await supabase
+        .from("evaluation_criteria")
+        .select(`
+          id,
+          name,
+          description,
+          max_score,
+          display_order,
+          is_active
+        `)
+        .eq("event_id", event.id)
+        .order("display_order", {
+          ascending: true,
+        })
+    : {
+        data: null,
+        error: null,
+      };
 
   if (criteriaError) {
     console.error("Erro ao carregar critérios:", {
@@ -114,8 +113,8 @@ export default async function AdminCriteriosPage({
         is_active
       `)
       .eq("is_active", true)
-      .order("percentage", {
-        ascending: false,
+      .order("display_order", {
+        ascending: true,
       });
 
   if (scoreOptionsError) {
@@ -130,14 +129,16 @@ export default async function AdminCriteriosPage({
     );
   }
 
-  const criteriaList = ((criteria ?? []) as Criterion[]).filter(
+  const allCriteriaList = (criteria ?? []) as Criterion[];
+
+  const activeCriteriaList = allCriteriaList.filter(
     (criterion) => criterion.is_active
   );
 
   const scoreOptionList =
     (scoreOptions ?? []) as ScoreOption[];
 
-  const totalMaxScore = criteriaList.reduce(
+  const totalMaxScore = activeCriteriaList.reduce(
     (total, criterion) =>
       total + Number(criterion.max_score),
     0
@@ -183,7 +184,7 @@ export default async function AdminCriteriosPage({
             </p>
 
             {event && (
-              <p className="mt-4 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/80 w-fit">
+              <p className="mt-4 w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/80">
                 Evento atual:{" "}
                 <strong className="text-white">
                   {event.name} — {event.year}
@@ -200,12 +201,12 @@ export default async function AdminCriteriosPage({
             <div className="mt-5 grid gap-4">
               <HeroMetric
                 label="Critérios cadastrados"
-                value={criteriaList.length}
+                value={allCriteriaList.length}
               />
 
               <HeroMetric
                 label="Critérios ativos"
-                value={criteriaList.length}
+                value={activeCriteriaList.length}
               />
 
               <HeroMetric
@@ -220,20 +221,20 @@ export default async function AdminCriteriosPage({
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard
           label="Critérios cadastrados"
-          value={criteriaList.length}
-          description="Itens ativos configurados para o formulário."
+          value={allCriteriaList.length}
+          description="Total de critérios já cadastrados para o evento."
         />
 
         <MetricCard
           label="Critérios ativos"
-          value={criteriaList.length}
+          value={activeCriteriaList.length}
           description="Critérios disponíveis para os avaliadores."
         />
 
         <MetricCard
           label="Pontuação máxima total"
           value={formatNumber(totalMaxScore)}
-          description="Soma da pontuação máxima dos critérios."
+          description="Soma da pontuação máxima dos critérios ativos."
         />
       </section>
 
@@ -326,7 +327,7 @@ export default async function AdminCriteriosPage({
         </div>
 
         <CriteriaBoard
-          criteria={criteriaList}
+          criteria={activeCriteriaList}
           scoreOptions={scoreOptionList}
         />
       </section>

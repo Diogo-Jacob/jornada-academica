@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -17,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 type NovaSubmissaoPageProps = {
   searchParams: Promise<{
@@ -34,6 +35,12 @@ type Event = {
   submission_ends_at: string | null;
 };
 
+type Category = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
 function formatDateTime(date: string | null) {
   if (!date) {
     return "Não informado";
@@ -42,6 +49,7 @@ function formatDateTime(date: string | null) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
   }).format(new Date(date));
 }
 
@@ -90,7 +98,7 @@ function getSubmissionPeriodStatus(event: Event | null) {
       ? `Você pode criar uma nova submissão até ${formatDateTime(
           event.submission_ends_at
         )}.`
-      : "Você pode criar uma nova submissão para esta edição até __/__.",
+      : "Você pode criar uma nova submissão enquanto o período de submissões estiver aberto.",
   };
 }
 
@@ -98,9 +106,10 @@ export default async function NovaSubmissaoPage({
   searchParams,
 }: NovaSubmissaoPageProps) {
   const params = await searchParams;
-  const supabase = await createClient();
 
-  const { data: event } = await supabase
+  const { supabase } = await getCurrentUser();
+
+  const { data: event, error: eventError } = await supabase
     .from("events")
     .select(`
       id,
@@ -121,22 +130,47 @@ export default async function NovaSubmissaoPage({
     .limit(1)
     .maybeSingle();
 
+  if (eventError) {
+    console.error("Erro ao carregar evento para nova submissão:", {
+      message: eventError.message,
+      details: eventError.details,
+      hint: eventError.hint,
+      code: eventError.code,
+    });
+  }
+
   const currentEvent = event as Event | null;
 
   const submissionPeriod =
     getSubmissionPeriodStatus(currentEvent);
 
-  const { data: categories } =
-    currentEvent && submissionPeriod.isOpen
-      ? await supabase
-          .from("submission_categories")
-          .select("id, name, description")
-          .eq("event_id", currentEvent.id)
-          .eq("is_active", true)
-          .order("display_order", {
-            ascending: true,
-          })
-      : { data: [] };
+  let categories: Category[] = [];
+
+  if (currentEvent && submissionPeriod.isOpen) {
+    const {
+      data: categoriesData,
+      error: categoriesError,
+    } = await supabase
+      .from("submission_categories")
+      .select("id, name, description")
+      .eq("event_id", currentEvent.id)
+      .eq("is_active", true)
+      .order("display_order", {
+        ascending: true,
+      });
+
+    if (categoriesError) {
+      console.error("Erro ao carregar categorias de submissão:", {
+        eventId: currentEvent.id,
+        message: categoriesError.message,
+        details: categoriesError.details,
+        hint: categoriesError.hint,
+        code: categoriesError.code,
+      });
+    }
+
+    categories = (categoriesData ?? []) as Category[];
+  }
 
   return (
     <div className="space-y-8">
@@ -146,7 +180,7 @@ export default async function NovaSubmissaoPage({
         asChild
       >
         <Link href="/aluno/trabalhos">
-          <ArrowLeft />
+          <ArrowLeft className="size-4" />
           Voltar para meus trabalhos
         </Link>
       </Button>
@@ -273,7 +307,7 @@ export default async function NovaSubmissaoPage({
                 {submissionPeriod.description}
               </p>
             </div>
-          ) : !categories?.length ? (
+          ) : !categories.length ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#b9d4df] bg-[#f7fbfd] px-6 py-14 text-center">
               <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[#eef7fa] text-[#245b7a]">
                 <ClipboardList className="size-7" />
@@ -301,7 +335,7 @@ export default async function NovaSubmissaoPage({
 }
 
 type InfoPanelProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 };

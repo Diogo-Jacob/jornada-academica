@@ -6,10 +6,39 @@ import { sendEmail } from "@/services/email/send-email";
 import { resultsAvailableEmail } from "@/services/email/templates/results-available";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
+const ACTION_TIMEOUT_MS = 30_000;
+const STATUS_UPDATE_TIMEOUT_MS = 15_000;
+const EMAIL_TIMEOUT_MS = 15_000;
+
 type FinalResultStatus =
   | "selected_oral"
   | "selected_banner"
   | "not_selected";
+
+async function withTimeout<T>(
+  action: () => Promise<T>,
+  timeoutMessage: string,
+  timeoutMs = ACTION_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      action(),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 function redirectWithMessage(
   type: "erro" | "sucesso",
@@ -88,7 +117,9 @@ function getSettingsDate(
   return null;
 }
 
-function getSubmissionEndDate(settings: Record<string, unknown> | null) {
+function getSubmissionEndDate(
+  settings: Record<string, unknown> | null
+) {
   return getSettingsDate(settings, [
     "submission_end",
     "submission_end_at",
@@ -111,7 +142,16 @@ async function ensureResultsNoticeCanBeSent(
       .limit(1)
       .maybeSingle();
 
-  if (eventSettingsError) {
+  const shouldIgnoreEventSettingsError =
+    eventSettingsError &&
+    (eventSettingsError.code === "42P01" ||
+      eventSettingsError.code === "PGRST116" ||
+      eventSettingsError.code === "42501");
+
+  if (
+    eventSettingsError &&
+    !shouldIgnoreEventSettingsError
+  ) {
     console.error("Erro ao validar período de submissões:", {
       message: eventSettingsError.message,
       details: eventSettingsError.details,
@@ -125,10 +165,15 @@ async function ensureResultsNoticeCanBeSent(
     );
   }
 
-  const eventSettings =
-    (eventSettingsData ?? null) as Record<string, unknown> | null;
+  const eventSettings = eventSettingsError
+    ? null
+    : ((eventSettingsData ?? null) as Record<
+        string,
+        unknown
+      > | null);
 
-  const submissionEndDate = getSubmissionEndDate(eventSettings);
+  const submissionEndDate =
+    getSubmissionEndDate(eventSettings);
 
   if (!submissionEndDate) {
     redirectWithMessage(
@@ -137,7 +182,8 @@ async function ensureResultsNoticeCanBeSent(
     );
   }
 
-  const hasSubmissionPeriodEnded = new Date() > submissionEndDate;
+  const hasSubmissionPeriodEnded =
+    new Date() > submissionEndDate;
 
   if (!hasSubmissionPeriodEnded) {
     redirectWithMessage(
@@ -181,6 +227,7 @@ export async function setFinalResult(formData: FormData) {
 
   if (submissionError) {
     console.error("Erro ao localizar submissão:", {
+      submissionId,
       message: submissionError.message,
       details: submissionError.details,
       hint: submissionError.hint,
@@ -216,15 +263,27 @@ export async function setFinalResult(formData: FormData) {
     );
   }
 
-  const { error: updateError } = await supabase
-    .from("submissions")
-    .update({
-      status: finalStatus,
-    })
-    .eq("id", submissionId);
+  const {
+    data: updatedSubmission,
+    error: updateError,
+  } = await withTimeout(
+    async () =>
+      await supabase
+        .from("submissions")
+        .update({
+          status: finalStatus,
+        })
+        .eq("id", submissionId)
+        .in("status", allowedStatuses)
+        .select("id, status")
+        .maybeSingle(),
+    "A tentativa de definir o resultado final demorou mais que o esperado.",
+    STATUS_UPDATE_TIMEOUT_MS
+  );
 
   if (updateError) {
     console.error("Erro ao definir resultado final:", {
+      submissionId,
       message: updateError.message,
       details: updateError.details,
       hint: updateError.hint,
@@ -237,10 +296,20 @@ export async function setFinalResult(formData: FormData) {
     );
   }
 
+  if (!updatedSubmission) {
+    redirectWithMessage(
+      "erro",
+      "O resultado não pôde ser definido porque o trabalho já foi alterado. Atualize a página e tente novamente."
+    );
+  }
+
   revalidatePath("/admin/resultados");
   revalidatePath("/admin/avaliacoes");
   revalidatePath("/admin/submissoes");
   revalidatePath(`/admin/submissoes/${submissionId}`);
+  revalidatePath("/aluno");
+  revalidatePath("/aluno/trabalhos");
+  revalidatePath(`/aluno/trabalhos/${submissionId}`);
 
   redirectWithMessage(
     "sucesso",
@@ -261,7 +330,7 @@ export async function sendResultsAvailableEmails() {
         title,
         protocol,
         status,
-        ranking_position,
+        updated_at,
 
         submission_authors (
           id,
@@ -275,9 +344,8 @@ export async function sendResultsAvailableEmails() {
         "selected_oral",
         "selected_banner",
       ])
-      .order("ranking_position", {
+      .order("updated_at", {
         ascending: true,
-        nullsFirst: false,
       })
       .limit(40);
 
@@ -319,28 +387,53 @@ export async function sendResultsAvailableEmails() {
         continue;
       }
 
-      const emailResult = await sendEmail({
-        to: author.email,
-        subject: `Trabalho selecionado - ${submission.protocol ?? submission.title}`,
-        html: resultsAvailableEmail({
-          authorName: author.full_name ?? "Autor(a)",
-          title: submission.title,
-          protocol: submission.protocol,
-          resultLabel: getResultLabel(submission.status),
-        }),
-      });
+      try {
+        const emailResult = await withTimeout(
+          async () =>
+            await sendEmail({
+              to: author.email,
+              subject: `Trabalho selecionado - ${
+                submission.protocol ?? submission.title
+              }`,
+              html: resultsAvailableEmail({
+                authorName:
+                  author.full_name ?? "Autor(a)",
+                title: submission.title,
+                protocol: submission.protocol,
+                resultLabel: getResultLabel(submission.status),
+              }),
+            }),
+          "O envio do e-mail de resultado demorou mais que o esperado.",
+          EMAIL_TIMEOUT_MS
+        );
 
-      if (emailResult.success) {
-        sentCount += 1;
-      } else {
+        if (emailResult.success) {
+          sentCount += 1;
+        } else {
+          failedCount += 1;
+
+          console.error(
+            "E-mail de resultado não enviado:",
+            {
+              authorEmail: author.email,
+              submissionId: submission.id,
+              emailResult,
+            }
+          );
+        }
+      } catch (emailError) {
         failedCount += 1;
 
         console.error(
-          "E-mail de resultado não enviado:",
+          "E-mail de resultado falhou ou demorou demais:",
           {
             authorEmail: author.email,
             submissionId: submission.id,
-            emailResult,
+            message:
+              emailError instanceof Error
+                ? emailError.message
+                : "Erro desconhecido",
+            error: emailError,
           }
         );
       }

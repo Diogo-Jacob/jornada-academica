@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { sendResultsAvailableEmails } from "./actions";
 import { redirect } from "next/navigation";
+import { sendResultsAvailableEmails } from "./actions";
 import {
   ArrowRight,
   BarChart3,
@@ -77,12 +78,18 @@ type OfficialScoreResult = {
   usedClosestPair: boolean;
 };
 
+type AutomaticResult =
+  | "oral"
+  | "banner"
+  | "not_selected"
+  | "pending";
+
 type RankedSubmission = {
   submission: Submission;
   assignments: Assignment[];
   officialScore: OfficialScoreResult;
   rank: number | null;
-  automaticResult: "oral" | "banner" | "pending";
+  automaticResult: AutomaticResult;
 };
 
 function formatStatus(status: string) {
@@ -130,18 +137,6 @@ function getStatusClass(status: string) {
   );
 }
 
-function formatAssignmentStatus(status: string) {
-  const labels: Record<string, string> = {
-    assigned: "Atribuído",
-    in_progress: "Em andamento",
-    completed: "Concluída",
-    declined: "Recusada",
-    cancelled: "Cancelada",
-  };
-
-  return labels[status] ?? status;
-}
-
 function formatNumber(value: number | null) {
   if (value === null || Number.isNaN(value)) {
     return "—";
@@ -161,6 +156,7 @@ function formatDate(date: string | null) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
   }).format(new Date(date));
 }
 
@@ -187,7 +183,9 @@ function getSettingsDate(
   return null;
 }
 
-function getSubmissionEndDate(settings: Record<string, unknown> | null) {
+function getSubmissionEndDate(
+  settings: Record<string, unknown> | null
+) {
   return getSettingsDate(settings, [
     "submission_end",
     "submission_end_at",
@@ -211,9 +209,12 @@ function getCategoryName(submission: Submission) {
 }
 
 function getResponsibleAuthor(submission: Submission) {
-  const authors = [...(submission.submission_authors ?? [])].sort(
+  const authors = [
+    ...(submission.submission_authors ?? []),
+  ].sort(
     (firstAuthor, secondAuthor) =>
-      firstAuthor.display_order - secondAuthor.display_order
+      firstAuthor.display_order -
+      secondAuthor.display_order
   );
 
   return (
@@ -287,8 +288,10 @@ function getOfficialScoreResult({
 
   if (completedScores.length === 2) {
     const average =
-      completedScores.reduce((total, item) => total + item.score, 0) /
-      completedScores.length;
+      completedScores.reduce(
+        (total, item) => total + item.score,
+        0
+      ) / completedScores.length;
 
     return {
       average,
@@ -306,7 +309,11 @@ function getOfficialScoreResult({
     average: number;
   }[] = [];
 
-  for (let firstIndex = 0; firstIndex < completedScores.length; firstIndex++) {
+  for (
+    let firstIndex = 0;
+    firstIndex < completedScores.length;
+    firstIndex++
+  ) {
     for (
       let secondIndex = firstIndex + 1;
       secondIndex < completedScores.length;
@@ -350,13 +357,16 @@ function getOfficialScoreResult({
   return {
     average: selectedPair.average,
     completedEvaluations: completedScores.length,
-    consideredScores: [selectedPair.first, selectedPair.second],
+    consideredScores: [
+      selectedPair.first,
+      selectedPair.second,
+    ],
     allScores: completedScores,
     usedClosestPair: true,
   };
 }
 
-function getAutomaticResultLabel(result: RankedSubmission["automaticResult"]) {
+function getAutomaticResultLabel(result: AutomaticResult) {
   if (result === "oral") {
     return "Apresentação oral";
   }
@@ -365,18 +375,24 @@ function getAutomaticResultLabel(result: RankedSubmission["automaticResult"]) {
     return "Banner";
   }
 
+  if (result === "not_selected") {
+    return "Não selecionado";
+  }
+
   return "Aguardando conclusão";
 }
 
-function getAutomaticResultClassName(
-  result: RankedSubmission["automaticResult"]
-) {
+function getAutomaticResultClassName(result: AutomaticResult) {
   if (result === "oral") {
     return "border-green-300 bg-green-50 text-green-800";
   }
 
   if (result === "banner") {
     return "border-[#b9d4df] bg-[#eef7fa] text-[#245b7a]";
+  }
+
+  if (result === "not_selected") {
+    return "border-red-300 bg-red-50 text-red-800";
   }
 
   return "border-slate-300 bg-slate-50 text-slate-700";
@@ -390,31 +406,34 @@ function buildRankedSubmissions({
   submissions: Submission[];
   assignments: Assignment[];
   responses: EvaluationResponse[];
-}) {
-  const baseRows = submissions.map((submission) => {
-    const submissionAssignments = assignments
-      .filter(
-        (assignment) => assignment.submission_id === submission.id
-      )
-      .sort((firstAssignment, secondAssignment) =>
-        firstAssignment.assigned_at.localeCompare(
-          secondAssignment.assigned_at
+}): RankedSubmission[] {
+  const baseRows: RankedSubmission[] = submissions.map(
+    (submission) => {
+      const submissionAssignments = assignments
+        .filter(
+          (assignment) =>
+            assignment.submission_id === submission.id
         )
-      );
+        .sort((firstAssignment, secondAssignment) =>
+          firstAssignment.assigned_at.localeCompare(
+            secondAssignment.assigned_at
+          )
+        );
 
-    const officialScore = getOfficialScoreResult({
-      assignments: submissionAssignments,
-      responses,
-    });
+      const officialScore = getOfficialScoreResult({
+        assignments: submissionAssignments,
+        responses,
+      });
 
-    return {
-      submission,
-      assignments: submissionAssignments,
-      officialScore,
-      rank: null,
-      automaticResult: "pending" as const,
-    };
-  });
+      return {
+        submission,
+        assignments: submissionAssignments,
+        officialScore,
+        rank: null,
+        automaticResult: "pending",
+      };
+    }
+  );
 
   const completedRows = baseRows
     .filter((row) => row.officialScore.average !== null)
@@ -432,21 +451,23 @@ function buildRankedSubmissions({
       );
     });
 
-    
-
-  const rankedCompletedRows = completedRows.map((row, index) => ({
-    ...row,
-    rank: index + 1,
-    automaticResult:
-  index < 5
-    ? ("oral" as const)
-    : index < 40
-      ? ("banner" as const)
-      : ("pending" as const),
-  }));
+  const rankedCompletedRows: RankedSubmission[] =
+    completedRows.map((row, index) => ({
+      ...row,
+      rank: index + 1,
+      automaticResult:
+        index < 5
+          ? "oral"
+          : index < 40
+            ? "banner"
+            : "not_selected",
+    }));
 
   const rankedMap = new Map(
-    rankedCompletedRows.map((row) => [row.submission.id, row])
+    rankedCompletedRows.map((row) => [
+      row.submission.id,
+      row,
+    ])
   );
 
   return baseRows
@@ -473,7 +494,7 @@ function buildRankedSubmissions({
 function ResultBadge({
   result,
 }: {
-  result: RankedSubmission["automaticResult"];
+  result: AutomaticResult;
 }) {
   return (
     <span
@@ -506,40 +527,44 @@ export default async function AdminResultadosPage({
     redirect("/acesso-negado");
   }
 
-const { data: eventSettingsData, error: eventSettingsError } =
-  await supabase
-    .from("event_settings")
-    .select("*")
-    .limit(1)
-    .maybeSingle();
+  const { data: eventSettingsData, error: eventSettingsError } =
+    await supabase
+      .from("event_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
 
-const shouldIgnoreEventSettingsError =
-  eventSettingsError &&
-  (
-    eventSettingsError.code === "42P01" ||
-    eventSettingsError.code === "PGRST116" ||
-    eventSettingsError.code === "42501"
-  );
+  const shouldIgnoreEventSettingsError =
+    eventSettingsError &&
+    (eventSettingsError.code === "42P01" ||
+      eventSettingsError.code === "PGRST116" ||
+      eventSettingsError.code === "42501");
 
-if (eventSettingsError && !shouldIgnoreEventSettingsError) {
-  console.warn("Aviso ao carregar configurações do evento:", {
-    message: eventSettingsError.message,
-    details: eventSettingsError.details,
-    hint: eventSettingsError.hint,
-    code: eventSettingsError.code,
-  });
-}
+  if (
+    eventSettingsError &&
+    !shouldIgnoreEventSettingsError
+  ) {
+    console.warn("Aviso ao carregar configurações do evento:", {
+      message: eventSettingsError.message,
+      details: eventSettingsError.details,
+      hint: eventSettingsError.hint,
+      code: eventSettingsError.code,
+    });
+  }
 
-const eventSettings =
-  eventSettingsError
+  const eventSettings = eventSettingsError
     ? null
-    : ((eventSettingsData ?? null) as Record<string, unknown> | null);
+    : ((eventSettingsData ?? null) as Record<
+        string,
+        unknown
+      > | null);
 
-const submissionEndDate = getSubmissionEndDate(eventSettings);
+  const submissionEndDate =
+    getSubmissionEndDate(eventSettings);
 
-const hasSubmissionPeriodEnded = submissionEndDate
-  ? new Date() > submissionEndDate
-  : false;
+  const hasSubmissionPeriodEnded = submissionEndDate
+    ? new Date() > submissionEndDate
+    : false;
 
   const { data: submissionsData, error: submissionsError } =
     await supabase
@@ -578,17 +603,24 @@ const hasSubmissionPeriodEnded = submissionEndDate
       });
 
   if (submissionsError) {
-    console.error("Erro ao carregar submissões para resultados:", {
-      message: submissionsError.message,
-      details: submissionsError.details,
-      hint: submissionsError.hint,
-      code: submissionsError.code,
-    });
+    console.error(
+      "Erro ao carregar submissões para resultados:",
+      {
+        message: submissionsError.message,
+        details: submissionsError.details,
+        hint: submissionsError.hint,
+        code: submissionsError.code,
+      }
+    );
   }
 
   const submissions = (submissionsData ?? []) as Submission[];
 
-  const submissionIds = submissions.map((submission) => submission.id);
+  const submissionIds = Array.from(
+    new Set(
+      submissions.map((submission) => submission.id)
+    )
+  );
 
   let assignments: Assignment[] = [];
 
@@ -628,7 +660,9 @@ const hasSubmissionPeriodEnded = submissionEndDate
 
   const evaluatorIds = Array.from(
     new Set(
-      assignments.map((assignment) => assignment.evaluator_id)
+      assignments.map(
+        (assignment) => assignment.evaluator_id
+      )
     )
   );
 
@@ -657,7 +691,9 @@ const hasSubmissionPeriodEnded = submissionEndDate
     evaluators = (evaluatorsData ?? []) as Profile[];
   }
 
-  const assignmentIds = assignments.map((assignment) => assignment.id);
+  const assignmentIds = Array.from(
+    new Set(assignments.map((assignment) => assignment.id))
+  );
 
   let responses: EvaluationResponse[] = [];
 
@@ -674,19 +710,25 @@ const hasSubmissionPeriodEnded = submissionEndDate
         .in("assignment_id", assignmentIds);
 
     if (responsesError) {
-      console.error("Erro ao carregar respostas das avaliações:", {
-        message: responsesError.message,
-        details: responsesError.details,
-        hint: responsesError.hint,
-        code: responsesError.code,
-      });
+      console.error(
+        "Erro ao carregar respostas das avaliações:",
+        {
+          message: responsesError.message,
+          details: responsesError.details,
+          hint: responsesError.hint,
+          code: responsesError.code,
+        }
+      );
     }
 
     responses = (responsesData ?? []) as EvaluationResponse[];
   }
 
   const evaluatorMap = new Map(
-    evaluators.map((evaluator) => [evaluator.id, evaluator])
+    evaluators.map((evaluator) => [
+      evaluator.id,
+      evaluator,
+    ])
   );
 
   const rankedSubmissions = buildRankedSubmissions({
@@ -705,6 +747,10 @@ const hasSubmissionPeriodEnded = submissionEndDate
 
   const bannerRows = rankedSubmissions.filter(
     (row) => row.automaticResult === "banner"
+  );
+
+  const notSelectedRows = rankedSubmissions.filter(
+    (row) => row.automaticResult === "not_selected"
   );
 
   const pendingRows = rankedSubmissions.filter(
@@ -776,7 +822,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
                 className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
                 <Link href="/admin/resultados/exportar">
-                  <Download />
+                  <Download className="size-4" />
                   Exportar ranking Excel
                 </Link>
               </Button>
@@ -789,7 +835,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
                     title={resultsNoticeDisabledMessage ?? undefined}
                     className="bg-white text-[#102a3d] hover:bg-[#eef7fa] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Megaphone />
+                    <Megaphone className="size-4" />
                     Enviar aviso de resultados
                   </Button>
                 </form>
@@ -828,7 +874,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <MetricCard
           label="Trabalhos avaliados"
           value={completedRows.length}
@@ -845,6 +891,12 @@ const hasSubmissionPeriodEnded = submissionEndDate
           label="Banner"
           value={bannerRows.length}
           description="Trabalhos classificados do 6º ao 40º lugar."
+        />
+
+        <MetricCard
+          label="Não selecionados"
+          value={notSelectedRows.length}
+          description="Trabalhos avaliados fora das 40 primeiras posições."
         />
 
         <MetricCard
@@ -880,11 +932,15 @@ const hasSubmissionPeriodEnded = submissionEndDate
                 <p className="mt-2 text-sm leading-6 text-green-800">
                   {bestResult.rank}º lugar · Média oficial:{" "}
                   <strong>
-                    {formatNumber(bestResult.officialScore.average)}
+                    {formatNumber(
+                      bestResult.officialScore.average
+                    )}
                   </strong>{" "}
                   · Resultado:{" "}
                   <strong>
-                    {getAutomaticResultLabel(bestResult.automaticResult)}
+                    {getAutomaticResultLabel(
+                      bestResult.automaticResult
+                    )}
                   </strong>
                 </p>
               </div>
@@ -895,8 +951,10 @@ const hasSubmissionPeriodEnded = submissionEndDate
               variant="outline"
               className="border-green-300 bg-white text-green-800 hover:bg-green-100"
             >
-              <Link href={`/admin/submissoes/${bestResult.submission.id}`}>
-                <Eye />
+              <Link
+                href={`/admin/submissoes/${bestResult.submission.id}`}
+              >
+                <Eye className="size-4" />
                 Abrir submissão
               </Link>
             </Button>
@@ -954,7 +1012,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
           icon={<Megaphone className="size-6 text-[#245b7a]" />}
           eyebrow="Classificação"
           title="Banner"
-          description="Trabalhos classificados a partir do 6º lugar."
+          description="Trabalhos classificados do 6º ao 40º lugar."
         />
 
         <div className="p-6">
@@ -1037,7 +1095,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
                             href={`/admin/submissoes/${row.submission.id}`}
                           >
                             Abrir
-                            <ArrowRight />
+                            <ArrowRight className="size-4" />
                           </Link>
                         </Button>
                       </td>
@@ -1126,21 +1184,25 @@ const hasSubmissionPeriodEnded = submissionEndDate
                     const responsibleAuthor =
                       getResponsibleAuthor(row.submission);
 
-                    const allScoresText = row.officialScore.allScores.length
-                      ? row.officialScore.allScores
-                          .map((assignmentScore, index) => {
-                            const evaluator =
-                              evaluatorMap.get(
-                                assignmentScore.assignment.evaluator_id
-                              );
+                    const allScoresText =
+                      row.officialScore.allScores.length
+                        ? row.officialScore.allScores
+                            .map((assignmentScore, index) => {
+                              const evaluator =
+                                evaluatorMap.get(
+                                  assignmentScore.assignment
+                                    .evaluator_id
+                                );
 
-                            return `${index + 1}. ${
-                              evaluator?.full_name ??
-                              "Avaliador não localizado"
-                            }: ${formatNumber(assignmentScore.score)}`;
-                          })
-                          .join(" | ")
-                      : "—";
+                              return `${index + 1}. ${
+                                evaluator?.full_name ??
+                                "Avaliador não localizado"
+                              }: ${formatNumber(
+                                assignmentScore.score
+                              )}`;
+                            })
+                            .join(" | ")
+                        : "—";
 
                     const consideredScoresText =
                       row.officialScore.consideredScores.length
@@ -1148,13 +1210,16 @@ const hasSubmissionPeriodEnded = submissionEndDate
                             .map((assignmentScore) => {
                               const evaluator =
                                 evaluatorMap.get(
-                                  assignmentScore.assignment.evaluator_id
+                                  assignmentScore.assignment
+                                    .evaluator_id
                                 );
 
                               return `${
                                 evaluator?.full_name ??
                                 "Avaliador não localizado"
-                              }: ${formatNumber(assignmentScore.score)}`;
+                              }: ${formatNumber(
+                                assignmentScore.score
+                              )}`;
                             })
                             .join(" | ")
                         : "—";
@@ -1235,12 +1300,16 @@ const hasSubmissionPeriodEnded = submissionEndDate
 
                         <td className="px-4 py-4">
                           <span className="text-lg font-bold text-[#102a3d]">
-                            {formatNumber(row.officialScore.average)}
+                            {formatNumber(
+                              row.officialScore.average
+                            )}
                           </span>
                         </td>
 
                         <td className="px-4 py-4">
-                          <ResultBadge result={row.automaticResult} />
+                          <ResultBadge
+                            result={row.automaticResult}
+                          />
                         </td>
 
                         <td className="px-4 py-4">
@@ -1253,7 +1322,7 @@ const hasSubmissionPeriodEnded = submissionEndDate
                             <Link
                               href={`/admin/submissoes/${row.submission.id}`}
                             >
-                              <Eye />
+                              <Eye className="size-4" />
                               Abrir
                             </Link>
                           </Button>
@@ -1280,14 +1349,16 @@ const hasSubmissionPeriodEnded = submissionEndDate
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-              A classificação é automática: os 5 trabalhos com maiores médias finais
-              são classificados para apresentação oral. Os trabalhos classificados da
-              6ª à 40ª posição são selecionados para apresentação em banner. Os demais
-              trabalhos avaliados ficam como não selecionados. Quando há apenas duas
-              avaliações concluídas, a nota final corresponde à média das duas notas.
-              Quando há terceiro avaliador, a nota final corresponde à média aritmética
-              das duas notas mais próximas entre si. Em caso de empate entre pares
-              igualmente próximos, considera-se o par com maior média.
+              A classificação é automática: os 5 trabalhos com maiores
+              médias finais são classificados para apresentação oral. Os
+              trabalhos classificados da 6ª à 40ª posição são selecionados
+              para apresentação em banner. Os demais trabalhos avaliados
+              ficam como não selecionados. Quando há apenas duas avaliações
+              concluídas, a nota final corresponde à média das duas notas.
+              Quando há terceiro avaliador, a nota final corresponde à
+              média aritmética das duas notas mais próximas entre si. Em
+              caso de empate entre pares igualmente próximos, considera-se
+              o par com maior média.
             </p>
           </div>
         </div>
@@ -1347,7 +1418,7 @@ function MetricCard({
 }
 
 type SectionHeaderProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   eyebrow: string;
   title: string;
   description: string;

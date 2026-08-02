@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ export function ConfirmDeclineButton() {
   const { pending } = useFormStatus();
 
   function handleClick(
-    event: React.MouseEvent<HTMLButtonElement>
+    event: MouseEvent<HTMLButtonElement>
   ) {
     if (pending) {
       event.preventDefault();
@@ -39,7 +40,7 @@ export function ConfirmDeclineButton() {
         </>
       ) : (
         <>
-          <XCircle />
+          <XCircle className="size-4" />
           Recusar avaliação
         </>
       )}

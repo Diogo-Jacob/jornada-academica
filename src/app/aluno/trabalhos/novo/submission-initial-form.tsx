@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -193,7 +194,7 @@ export function SubmissionInitialForm({
           <OptionBox
             name="requiresEthicsApproval"
             value="yes"
-            checked={effectiveEthicsAnswer=== "yes"}
+            checked={effectiveEthicsAnswer === "yes"}
             onChange={(value) => setEthicsAnswer(value)}
             title="Sim, necessita de aprovação do CEP"
             description="Será obrigatório anexar o parecer consubstanciado de aprovação."
@@ -406,7 +407,7 @@ export function SubmissionInitialForm({
 }
 
 type SectionHeaderProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 };
@@ -521,7 +522,7 @@ function AuthorPreview({
 type TermsBoxProps = {
   name: string;
   checked: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   onChange: (checked: boolean) => void;
 };
 
@@ -578,7 +579,7 @@ function CreateSubmissionButton({
       ) : (
         <>
           Criar rascunho e continuar
-          <ArrowRight />
+          <ArrowRight className="size-4" />
         </>
       )}
     </Button>

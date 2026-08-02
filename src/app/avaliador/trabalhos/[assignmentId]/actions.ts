@@ -8,6 +8,21 @@ import { evaluationDeclinedAdminEmail } from "@/services/email/templates/evaluat
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 const ACTION_TIMEOUT_MS = 30_000;
+const START_EVALUATION_TIMEOUT_MS = 15_000;
+const EMAIL_NOTIFICATION_TIMEOUT_MS = 15_000;
+
+type Assignment = {
+  id: string;
+  status: string;
+  submission_id: string;
+  evaluator_id: string;
+};
+
+type Submission = {
+  id: string;
+  event_id: string;
+  status: string;
+};
 
 async function withTimeout<T>(
   action: () => Promise<T>,
@@ -55,8 +70,13 @@ function formatDateTime(date: string) {
 }
 
 async function getEvaluatorAssignment(
-  assignmentId: string
+  assignmentId: string,
+  options: {
+    includeSubmission?: boolean;
+  } = {}
 ) {
+  const { includeSubmission = true } = options;
+
   const { profile, supabase } = await getCurrentUser();
 
   if (
@@ -77,10 +97,12 @@ async function getEvaluatorAssignment(
       `)
       .eq("id", assignmentId)
       .eq("evaluator_id", profile.id)
-      .maybeSingle();
+      .maybeSingle<Assignment>();
 
   if (assignmentError) {
     console.error("Erro ao consultar avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message: assignmentError.message,
       details: assignmentError.details,
       hint: assignmentError.hint,
@@ -102,8 +124,13 @@ async function getEvaluatorAssignment(
     );
   }
 
-  const { data: submission, error: submissionError } =
-    await supabase
+  let submission: Submission | null = null;
+
+  if (includeSubmission) {
+    const {
+      data: submissionData,
+      error: submissionError,
+    } = await supabase
       .from("submissions")
       .select(`
         id,
@@ -111,32 +138,37 @@ async function getEvaluatorAssignment(
         status
       `)
       .eq("id", assignment.submission_id)
-      .maybeSingle();
+      .maybeSingle<Submission>();
 
-  if (submissionError) {
-    console.error(
-      "Erro ao consultar submissão da avaliação:",
-      {
-        message: submissionError.message,
-        details: submissionError.details,
-        hint: submissionError.hint,
-        code: submissionError.code,
-      }
-    );
+    if (submissionError) {
+      console.error(
+        "Erro ao consultar submissão da avaliação:",
+        {
+          assignmentId,
+          submissionId: assignment.submission_id,
+          message: submissionError.message,
+          details: submissionError.details,
+          hint: submissionError.hint,
+          code: submissionError.code,
+        }
+      );
 
-    redirectWithMessage(
-      assignmentId,
-      "erro",
-      "Não foi possível consultar o trabalho vinculado à avaliação."
-    );
-  }
+      redirectWithMessage(
+        assignmentId,
+        "erro",
+        "Não foi possível consultar o trabalho vinculado à avaliação."
+      );
+    }
 
-  if (!submission) {
-    redirectWithMessage(
-      assignmentId,
-      "erro",
-      "O trabalho vinculado à avaliação não foi encontrado."
-    );
+    if (!submissionData) {
+      redirectWithMessage(
+        assignmentId,
+        "erro",
+        "O trabalho vinculado à avaliação não foi encontrado."
+      );
+    }
+
+    submission = submissionData;
   }
 
   return {
@@ -176,6 +208,7 @@ async function notifyAdminsAboutEvaluationDecline({
     console.error(
       "Não foi possível buscar dados da submissão para notificar admins:",
       {
+        submissionId,
         message: submissionError?.message,
         details: submissionError?.details,
         hint: submissionError?.hint,
@@ -194,9 +227,7 @@ async function notifyAdminsAboutEvaluationDecline({
     .select(`
       id,
       full_name,
-      email,
-      role,
-      is_active
+      email
     `)
     .in("role", ["admin", "super_admin"])
     .eq("is_active", true);
@@ -215,37 +246,51 @@ async function notifyAdminsAboutEvaluationDecline({
     return;
   }
 
-  if (!admins?.length) {
+  const adminsWithEmail =
+    admins?.filter((admin) => admin.email) ?? [];
+
+  if (!adminsWithEmail.length) {
     console.error(
-      "Nenhum admin ativo encontrado para receber notificação de recusa."
+      "Nenhum admin ativo com e-mail encontrado para receber notificação de recusa."
     );
 
     return;
   }
 
-  for (const admin of admins) {
-    if (!admin.email) {
-      continue;
-    }
+  const emailResults = await Promise.allSettled(
+    adminsWithEmail.map(async (admin) => {
+      const emailResult = await sendEmail({
+        to: admin.email,
+        subject:
+          "Avaliação recusada - substituição necessária",
+        html: evaluationDeclinedAdminEmail({
+          adminName:
+            admin.full_name ?? "Administrador(a)",
+          evaluatorName,
+          evaluatorEmail,
+          title: submission.title,
+          declinedAt: formatDateTime(declinedAt),
+        }),
+      });
 
-    const emailResult = await sendEmail({
-      to: admin.email,
-      subject:
-        "Avaliação recusada - substituição necessária",
-      html: evaluationDeclinedAdminEmail({
-        adminName:
-          admin.full_name ?? "Administrador(a)",
-        evaluatorName,
-        evaluatorEmail,
-        title: submission.title,
-        declinedAt: formatDateTime(declinedAt),
-      }),
-    });
+      if (!emailResult.success) {
+        console.error(
+          "E-mail para admin sobre recusa de avaliação não enviado:",
+          {
+            adminId: admin.id,
+            adminEmail: admin.email,
+            emailResult,
+          }
+        );
+      }
+    })
+  );
 
-    if (!emailResult.success) {
+  for (const result of emailResults) {
+    if (result.status === "rejected") {
       console.error(
-        "E-mail para admin sobre recusa de avaliação não enviado:",
-        emailResult
+        "Erro inesperado ao enviar notificação de recusa para admin:",
+        result.reason
       );
     }
   }
@@ -263,7 +308,9 @@ export async function startEvaluation(
   }
 
   const { profile, supabase, assignment } =
-    await getEvaluatorAssignment(assignmentId);
+    await getEvaluatorAssignment(assignmentId, {
+      includeSubmission: false,
+    });
 
   if (assignment.status === "in_progress") {
     redirectWithMessage(
@@ -306,7 +353,7 @@ export async function startEvaluation(
           .select("id, status")
           .maybeSingle(),
       "A tentativa de iniciar a avaliação demorou mais que o esperado.",
-      15_000
+      START_EVALUATION_TIMEOUT_MS
     );
   } catch (error) {
     console.error("Timeout ao iniciar avaliação:", {
@@ -372,6 +419,14 @@ export async function declineEvaluation(
   const { profile, supabase, assignment, submission } =
     await getEvaluatorAssignment(assignmentId);
 
+  if (!submission) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "O trabalho vinculado à avaliação não foi encontrado."
+    );
+  }
+
   if (assignment.status !== "assigned") {
     redirectWithMessage(
       assignmentId,
@@ -394,11 +449,15 @@ export async function declineEvaluation(
           })
           .eq("id", assignmentId)
           .eq("evaluator_id", profile.id)
-          .eq("status", "assigned"),
+          .eq("status", "assigned")
+          .select("id, status")
+          .maybeSingle(),
       "A tentativa de recusar a avaliação demorou mais que o esperado."
     );
   } catch (error) {
     console.error("Timeout ao recusar avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message:
         error instanceof Error
           ? error.message
@@ -415,6 +474,8 @@ export async function declineEvaluation(
 
   if (result.error) {
     console.error("Erro ao recusar avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message: result.error.message,
       details: result.error.details,
       hint: result.error.hint,
@@ -425,6 +486,14 @@ export async function declineEvaluation(
       assignmentId,
       "erro",
       "Não foi possível recusar esta avaliação."
+    );
+  }
+
+  if (!result.data) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "A avaliação não pôde ser recusada porque ela já foi alterada. Atualize a página e tente novamente."
     );
   }
 
@@ -447,6 +516,8 @@ export async function declineEvaluation(
     console.error(
       "Avaliação recusada, mas não foi possível marcar a submissão como aguardando substituição:",
       {
+        assignmentId,
+        submissionId: submission.id,
         message:
           submissionUpdateError.message,
         details:
@@ -457,13 +528,33 @@ export async function declineEvaluation(
     );
   }
 
-  await notifyAdminsAboutEvaluationDecline({
-    submissionId: submission.id,
-    evaluatorName:
-      profile.full_name ?? "Avaliador(a)",
-    evaluatorEmail: profile.email ?? null,
-    declinedAt,
-  });
+  try {
+    await withTimeout(
+      async () =>
+        await notifyAdminsAboutEvaluationDecline({
+          submissionId: submission.id,
+          evaluatorName:
+            profile.full_name ?? "Avaliador(a)",
+          evaluatorEmail: profile.email ?? null,
+          declinedAt,
+        }),
+      "A notificação por e-mail aos administradores demorou mais que o esperado.",
+      EMAIL_NOTIFICATION_TIMEOUT_MS
+    );
+  } catch (error) {
+    console.error(
+      "Avaliação recusada, mas a notificação por e-mail aos administradores falhou ou demorou demais:",
+      {
+        assignmentId,
+        submissionId: submission.id,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro desconhecido",
+        error,
+      }
+    );
+  }
 
   revalidatePath("/avaliador");
   revalidatePath(`/avaliador/trabalhos/${assignmentId}`);
@@ -492,6 +583,14 @@ export async function completeEvaluation(
   const { profile, supabase, assignment, submission } =
     await getEvaluatorAssignment(assignmentId);
 
+  if (!submission) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "O trabalho vinculado à avaliação não foi encontrado."
+    );
+  }
+
   if (assignment.status !== "in_progress") {
     redirectWithMessage(
       assignmentId,
@@ -506,9 +605,7 @@ export async function completeEvaluation(
       .select(`
         id,
         name,
-        max_score,
-        display_order,
-        is_active
+        max_score
       `)
       .eq("event_id", submission.event_id)
       .eq("is_active", true)
@@ -518,6 +615,8 @@ export async function completeEvaluation(
 
   if (criteriaError) {
     console.error("Erro ao buscar critérios:", {
+      assignmentId,
+      eventId: submission.event_id,
       message: criteriaError.message,
       details: criteriaError.details,
       hint: criteriaError.hint,
@@ -539,21 +638,22 @@ export async function completeEvaluation(
     );
   }
 
-  const { data: scoreOptions, error: scoreOptionsError } =
-    await supabase
-      .from("evaluation_score_options")
-      .select(`
-        id,
-        label,
-        percentage,
-        is_active
-      `)
-      .eq("is_active", true);
+  const {
+    data: scoreOptions,
+    error: scoreOptionsError,
+  } = await supabase
+    .from("evaluation_score_options")
+    .select(`
+      id,
+      percentage
+    `)
+    .eq("is_active", true);
 
   if (scoreOptionsError) {
     console.error(
       "Erro ao buscar opções de pontuação:",
       {
+        assignmentId,
         message: scoreOptionsError.message,
         details: scoreOptionsError.details,
         hint: scoreOptionsError.hint,
@@ -634,6 +734,8 @@ export async function completeEvaluation(
     );
   } catch (error) {
     console.error("Timeout ao salvar respostas:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message:
         error instanceof Error
           ? error.message
@@ -650,6 +752,8 @@ export async function completeEvaluation(
 
   if (upsertResult.error) {
     console.error("Erro ao salvar respostas:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message: upsertResult.error.message,
       details: upsertResult.error.details,
       hint: upsertResult.error.hint,
@@ -676,11 +780,15 @@ export async function completeEvaluation(
           })
           .eq("id", assignmentId)
           .eq("evaluator_id", profile.id)
-          .eq("status", "in_progress"),
+          .eq("status", "in_progress")
+          .select("id, status")
+          .maybeSingle(),
       "A tentativa de concluir a avaliação demorou mais que o esperado."
     );
   } catch (error) {
     console.error("Timeout ao concluir avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message:
         error instanceof Error
           ? error.message
@@ -697,6 +805,8 @@ export async function completeEvaluation(
 
   if (updateResult.error) {
     console.error("Erro ao concluir avaliação:", {
+      assignmentId,
+      evaluatorId: profile.id,
       message: updateResult.error.message,
       details: updateResult.error.details,
       hint: updateResult.error.hint,
@@ -707,6 +817,14 @@ export async function completeEvaluation(
       assignmentId,
       "erro",
       "As respostas foram salvas, mas não foi possível concluir a avaliação."
+    );
+  }
+
+  if (!updateResult.data) {
+    redirectWithMessage(
+      assignmentId,
+      "erro",
+      "As respostas foram salvas, mas a avaliação não pôde ser concluída porque ela já foi alterada. Atualize a página e tente novamente."
     );
   }
 

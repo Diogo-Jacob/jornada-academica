@@ -37,7 +37,7 @@ export default async function AdminAvaliadoresPage({
 
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
-    `${protocol}://${host}`;
+    (host ? `${protocol}://${host}` : "");
 
   const evaluatorRegisterLink =
     `${baseUrl}/avaliador/cadastro`;
@@ -48,7 +48,7 @@ export default async function AdminAvaliadoresPage({
     !profile.is_active ||
     !["admin", "super_admin"].includes(profile.role)
   ) {
-    redirect("/login");
+    redirect("/acess-negado");
   }
 
   const {

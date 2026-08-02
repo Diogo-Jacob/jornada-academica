@@ -31,7 +31,6 @@ type Submission = {
   id: string;
   title: string;
   protocol: string | null;
-  status: string;
   submission_categories:
     | {
         name: string;
@@ -122,8 +121,12 @@ export default async function AvaliadorPage() {
   const assignments =
     (assignmentsData ?? []) as Assignment[];
 
-  const submissionIds = assignments.map(
-    (assignment) => assignment.submission_id
+  const submissionIds = Array.from(
+    new Set(
+      assignments.map(
+        (assignment) => assignment.submission_id
+      )
+    )
   );
 
   let submissions: Submission[] = [];
@@ -136,7 +139,6 @@ export default async function AvaliadorPage() {
           id,
           title,
           protocol,
-          status,
 
           submission_categories (
             name

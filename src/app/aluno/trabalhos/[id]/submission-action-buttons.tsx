@@ -89,7 +89,7 @@ export function SubmitSubmissionButton() {
         </>
       ) : (
         <>
-          <Send />
+          <Send className="size-4" />
           Submeter trabalho definitivamente
         </>
       )}
