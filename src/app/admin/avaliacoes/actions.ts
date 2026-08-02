@@ -260,7 +260,13 @@ export async function assignEvaluators(formData: FormData) {
   if (submissionError) {
     console.error(
       "Erro ao consultar submissão:",
-      submissionError
+      {
+        submissionId,
+        message: submissionError.message,
+        details: submissionError.details,
+        hint: submissionError.hint,
+        code: submissionError.code,
+      }
     );
 
     redirectWithMessage(
@@ -323,7 +329,13 @@ export async function assignEvaluators(formData: FormData) {
   if (evaluatorsError) {
     console.error(
       "Erro ao consultar avaliadores:",
-      evaluatorsError
+      {
+        submissionId,
+        message: evaluatorsError.message,
+        details: evaluatorsError.details,
+        hint: evaluatorsError.hint,
+        code: evaluatorsError.code,
+      }
     );
 
     redirectWithMessage(
@@ -396,7 +408,10 @@ export async function assignEvaluators(formData: FormData) {
           status: "under_evaluation",
         })
         .eq("id", submissionId)
-        .eq("status", "approved_for_evaluation")
+        .in("status", [
+          "approved_for_evaluation",
+          "under_evaluation",
+        ])
         .select("id, status")
         .maybeSingle(),
     "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
@@ -421,11 +436,40 @@ export async function assignEvaluators(formData: FormData) {
     );
   }
 
+  let successMessage =
+    "Avaliadores atribuídos com sucesso. O trabalho foi encaminhado para avaliação científica.";
+
   if (!updatedSubmission) {
-    redirectWithMessage(
-      "erro",
-      "Os avaliadores foram atribuídos, mas o status da submissão já havia sido alterado. Atualize a página."
-    );
+    const {
+      data: currentSubmission,
+      error: currentSubmissionError,
+    } = await supabase
+      .from("submissions")
+      .select("id, status")
+      .eq("id", submissionId)
+      .maybeSingle();
+
+    if (currentSubmissionError) {
+      console.error(
+        "Avaliadores atribuídos, mas não foi possível consultar o status atual:",
+        {
+          submissionId,
+          message: currentSubmissionError.message,
+          details: currentSubmissionError.details,
+          hint: currentSubmissionError.hint,
+          code: currentSubmissionError.code,
+        }
+      );
+
+      successMessage =
+        "Avaliadores atribuídos com sucesso. Atualize a página para conferir o status atual da submissão.";
+    } else if (currentSubmission?.status === "under_evaluation") {
+      successMessage =
+        "Avaliadores atribuídos com sucesso. O trabalho foi encaminhado para avaliação científica.";
+    } else {
+      successMessage =
+        "Avaliadores atribuídos com sucesso. Atualize a página para conferir o status atual da submissão.";
+    }
   }
 
   for (const evaluator of evaluators) {
@@ -443,7 +487,7 @@ export async function assignEvaluators(formData: FormData) {
 
   redirectWithMessage(
     "sucesso",
-    "Avaliadores atribuídos com sucesso. O trabalho foi encaminhado para avaliação científica."
+    successMessage
   );
 }
 
