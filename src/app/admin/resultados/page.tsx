@@ -160,44 +160,6 @@ function formatDate(date: string | null) {
   }).format(new Date(date));
 }
 
-function getSettingsDate(
-  settings: Record<string, unknown> | null,
-  possibleKeys: string[]
-) {
-  if (!settings) {
-    return null;
-  }
-
-  for (const key of possibleKeys) {
-    const value = settings[key];
-
-    if (typeof value === "string" && value.trim()) {
-      const date = new Date(value);
-
-      if (!Number.isNaN(date.getTime())) {
-        return date;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getSubmissionEndDate(
-  settings: Record<string, unknown> | null
-) {
-  return getSettingsDate(settings, [
-    "submission_end",
-    "submission_end_at",
-    "submissions_end",
-    "submissions_end_at",
-    "submission_period_end",
-    "submission_period_end_at",
-    "submission_deadline",
-    "end_date",
-  ]);
-}
-
 function getCategoryName(submission: Submission) {
   const categoryValue = submission.submission_categories;
 
@@ -527,43 +489,52 @@ export default async function AdminResultadosPage({
     redirect("/acesso-negado");
   }
 
-  const { data: eventSettingsData, error: eventSettingsError } =
+  const { data: currentEventData, error: currentEventError } =
     await supabase
-      .from("event_settings")
-      .select("*")
+      .from("events")
+      .select(`
+        id,
+        name,
+        status,
+        submission_ends_at,
+        evaluation_ends_at,
+        results_publish_at,
+        total_selected_works,
+        oral_presentations_count
+      `)
+      .eq("status", "published")
+      .order("created_at", {
+        ascending: false,
+      })
       .limit(1)
       .maybeSingle();
 
-  const shouldIgnoreEventSettingsError =
-    eventSettingsError &&
-    (eventSettingsError.code === "42P01" ||
-      eventSettingsError.code === "PGRST116" ||
-      eventSettingsError.code === "42501");
-
-  if (
-    eventSettingsError &&
-    !shouldIgnoreEventSettingsError
-  ) {
-    console.warn("Aviso ao carregar configurações do evento:", {
-      message: eventSettingsError.message,
-      details: eventSettingsError.details,
-      hint: eventSettingsError.hint,
-      code: eventSettingsError.code,
+  if (currentEventError) {
+    console.warn("Aviso ao carregar evento atual:", {
+      message: currentEventError.message,
+      details: currentEventError.details,
+      hint: currentEventError.hint,
+      code: currentEventError.code,
     });
   }
 
-  const eventSettings = eventSettingsError
-    ? null
-    : ((eventSettingsData ?? null) as Record<
-        string,
-        unknown
-      > | null);
+  const currentEvent = currentEventData ?? null;
+
+  const resultsPublishDate =
+    currentEvent?.results_publish_at
+      ? new Date(currentEvent.results_publish_at)
+      : null;
 
   const submissionEndDate =
-    getSubmissionEndDate(eventSettings);
+    currentEvent?.submission_ends_at
+      ? new Date(currentEvent.submission_ends_at)
+      : null;
 
-  const hasSubmissionPeriodEnded = submissionEndDate
-    ? new Date() > submissionEndDate
+  const resultsReleaseDate =
+    resultsPublishDate ?? submissionEndDate;
+
+  const hasResultsReleaseDatePassed = resultsReleaseDate
+    ? new Date() >= resultsReleaseDate
     : false;
 
   const { data: submissionsData, error: submissionsError } =
@@ -761,18 +732,21 @@ export default async function AdminResultadosPage({
     (row) => row.officialScore.usedClosestPair
   );
 
-  const canSendResultsNotice =
-    hasSubmissionPeriodEnded && completedRows.length > 0;
+  const selectedRowsCount =
+    oralRows.length + bannerRows.length;
 
-  const resultsNoticeDisabledMessage = !submissionEndDate
-    ? "Configure a data de encerramento das submissões antes de liberar o aviso de resultados."
-    : !hasSubmissionPeriodEnded
-      ? `O envio do aviso ficará disponível após o encerramento das submissões: ${formatDate(
-          submissionEndDate.toISOString()
-        )}.`
-      : completedRows.length === 0
-        ? "Nenhum resultado com média oficial calculada foi encontrado."
-        : null;
+  const canSendResultsNotice =
+    hasResultsReleaseDatePassed && selectedRowsCount > 0;
+
+    const resultsNoticeDisabledMessage = !resultsReleaseDate
+      ? "Configure a data de publicação dos resultados antes de liberar o aviso."
+      : !hasResultsReleaseDatePassed
+        ? `O envio do aviso ficará disponível após a data de publicação dos resultados: ${formatDate(
+            resultsReleaseDate.toISOString()
+          )}.`
+        : selectedRowsCount === 0
+          ? "Nenhum trabalho selecionado para apresentação oral ou banner foi encontrado."
+          : null;
 
   const bestResult = completedRows[0] ?? null;
 

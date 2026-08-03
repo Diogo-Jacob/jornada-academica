@@ -94,105 +94,70 @@ function getResultLabel(status: string) {
   return labels[status] ?? "Selecionado";
 }
 
-function getSettingsDate(
-  settings: Record<string, unknown> | null,
-  possibleKeys: string[]
-) {
-  if (!settings) {
-    return null;
-  }
-
-  for (const key of possibleKeys) {
-    const value = settings[key];
-
-    if (typeof value === "string" && value.trim()) {
-      const date = new Date(value);
-
-      if (!Number.isNaN(date.getTime())) {
-        return date;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getSubmissionEndDate(
-  settings: Record<string, unknown> | null
-) {
-  return getSettingsDate(settings, [
-    "submission_end",
-    "submission_end_at",
-    "submissions_end",
-    "submissions_end_at",
-    "submission_period_end",
-    "submission_period_end_at",
-    "submission_deadline",
-    "end_date",
-  ]);
-}
-
 async function ensureResultsNoticeCanBeSent(
   supabase: Awaited<ReturnType<typeof ensureAdmin>>["supabase"]
 ) {
-  const { data: eventSettingsData, error: eventSettingsError } =
+  const { data: currentEvent, error: currentEventError } =
     await supabase
-      .from("event_settings")
-      .select("*")
+      .from("events")
+      .select(`
+        id,
+        name,
+        status,
+        submission_ends_at,
+        results_publish_at
+      `)
+      .eq("status", "published")
+      .order("created_at", {
+        ascending: false,
+      })
       .limit(1)
       .maybeSingle();
 
-  const shouldIgnoreEventSettingsError =
-    eventSettingsError &&
-    (eventSettingsError.code === "42P01" ||
-      eventSettingsError.code === "PGRST116" ||
-      eventSettingsError.code === "42501");
-
-  if (
-    eventSettingsError &&
-    !shouldIgnoreEventSettingsError
-  ) {
-    console.error("Erro ao validar período de submissões:", {
-      message: eventSettingsError.message,
-      details: eventSettingsError.details,
-      hint: eventSettingsError.hint,
-      code: eventSettingsError.code,
+  if (currentEventError) {
+    console.error("Erro ao validar data de publicação dos resultados:", {
+      message: currentEventError.message,
+      details: currentEventError.details,
+      hint: currentEventError.hint,
+      code: currentEventError.code,
     });
 
     redirectWithMessage(
       "erro",
-      "Não foi possível validar o período de submissões."
+      "Não foi possível validar a data de publicação dos resultados."
     );
   }
 
-  const eventSettings = eventSettingsError
-    ? null
-    : ((eventSettingsData ?? null) as Record<
-        string,
-        unknown
-      > | null);
-
-  const submissionEndDate =
-    getSubmissionEndDate(eventSettings);
-
-  if (!submissionEndDate) {
+  if (!currentEvent) {
     redirectWithMessage(
       "erro",
-      "Configure a data de encerramento das submissões antes de enviar o aviso de resultados."
+      "Nenhum evento publicado foi encontrado para validar o envio dos resultados."
     );
   }
 
-  const hasSubmissionPeriodEnded =
-    new Date() > submissionEndDate;
+  const resultsReleaseDate = currentEvent.results_publish_at
+    ? new Date(currentEvent.results_publish_at)
+    : currentEvent.submission_ends_at
+      ? new Date(currentEvent.submission_ends_at)
+      : null;
 
-  if (!hasSubmissionPeriodEnded) {
+  if (!resultsReleaseDate) {
     redirectWithMessage(
       "erro",
-      "O aviso de resultados só pode ser enviado após o encerramento do período de submissões."
+      "Configure a data de publicação dos resultados antes de enviar o aviso."
+    );
+  }
+
+  const hasResultsReleaseDatePassed =
+    new Date() >= resultsReleaseDate;
+
+  if (!hasResultsReleaseDatePassed) {
+    redirectWithMessage(
+      "erro",
+      "O aviso de resultados só pode ser enviado após a data de publicação dos resultados."
     );
   }
 }
-
 export async function setFinalResult(formData: FormData) {
   const submissionId = String(
     formData.get("submissionId") ?? ""
