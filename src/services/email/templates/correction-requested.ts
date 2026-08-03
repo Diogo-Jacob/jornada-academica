@@ -1,3 +1,5 @@
+import { safeText } from "./utils";
+
 type CorrectionRequestedEmailInput = {
   studentName: string;
   title: string;
@@ -21,7 +23,7 @@ export function correctionRequestedEmail({
         </h1>
 
         <p style="margin: 0 0 20px;">
-          Olá, ${studentName}.
+          Olá, ${safeText(studentName)}.
         </p>
 
         <p>
@@ -32,17 +34,17 @@ export function correctionRequestedEmail({
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0 0 8px;">
             <strong>Título:</strong><br />
-            ${title}
+            ${safeText(title)}
           </p>
 
           <p style="margin: 0 0 8px;">
             <strong>Protocolo:</strong><br />
-            ${protocol ?? "Protocolo não informado"}
+            ${safeText(protocol, "Protocolo não informado")}
           </p>
 
           <p style="margin: 0;">
             <strong>Data da análise:</strong><br />
-            ${reviewedAt}
+            ${safeText(reviewedAt)}
           </p>
         </div>
 
@@ -52,7 +54,7 @@ export function correctionRequestedEmail({
           </p>
 
           <p style="white-space: pre-wrap; margin: 0;">
-            ${notes}
+            ${safeText(notes)}
           </p>
         </div>
 

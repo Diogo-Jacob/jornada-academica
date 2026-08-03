@@ -1,3 +1,5 @@
+import { safeText } from "./utils";
+
 type EvaluationDeclinedAdminEmailInput = {
   adminName: string;
   evaluatorName: string;
@@ -32,7 +34,7 @@ export function evaluationDeclinedAdminEmail({
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0 0 8px;">
             <strong>Trabalho:</strong><br />
-            ${title}
+            ${safeText(title)}
           </p>
 
           <p style="margin: 0 0 8px;">

@@ -28,12 +28,12 @@ const navItems = [
     label: "Cronograma",
   },
   {
-    href: "#palestrantes",
-    label: "Palestrantes",
-  },
-  {
     href: "#local",
     label: "Local",
+  },
+  {
+    href: "#palestrantes",
+    label: "Palestrantes",
   },
   {
     href: "#edital",

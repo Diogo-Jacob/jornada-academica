@@ -1,3 +1,5 @@
+import { safeText } from "./utils";
+
 type EvaluationAssignedEmailInput = {
   evaluatorName: string;
   title: string;
@@ -34,7 +36,7 @@ export function evaluationAssignedEmail({
         </h1>
 
         <p style="margin: 0 0 20px;">
-          Olá, ${evaluatorName}.
+          Olá, ${safeText(evaluatorName, "Avaliador(a)")}.
         </p>
 
         <p>
@@ -44,12 +46,12 @@ export function evaluationAssignedEmail({
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0 0 8px;">
             <strong>Trabalho:</strong><br />
-            ${title}
+            ${safeText(title)}
           </p>
 
           <p style="margin: 0;">
             <strong>Data da atribuição:</strong><br />
-            ${assignedAt}
+            ${safeText(assignedAt)}
           </p>
         </div>
 

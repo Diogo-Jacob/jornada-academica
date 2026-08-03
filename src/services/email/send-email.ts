@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { safeText } from "./templates/utils";
 
 type SendEmailInput = {
   to: string | string[];
@@ -12,10 +13,7 @@ export async function sendEmail({
   html,
 }: SendEmailInput) {
   const apiKey = process.env.RESEND_API_KEY;
-
-  const from =
-    process.env.EMAIL_FROM ??
-    "Jornada Acadêmica <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM;
 
   if (!apiKey) {
     console.warn(
@@ -26,6 +24,18 @@ export async function sendEmail({
       success: false,
       skipped: true,
       error: "RESEND_API_KEY não configurada.",
+    };
+  }
+
+  if (!from) {
+    console.warn(
+      "EMAIL_FROM não configurada. E-mail não enviado."
+    );
+
+    return {
+      success: false,
+      skipped: true,
+      error: "EMAIL_FROM não configurada.",
     };
   }
 
@@ -42,7 +52,7 @@ export async function sendEmail({
       <div style="margin-bottom: 24px; padding: 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 8px; color: #92400e;">
         <strong>Modo de teste:</strong><br />
         Este e-mail seria enviado originalmente para:
-        ${originalRecipients.join(", ")}
+        ${safeText(originalRecipients.join(", "))}
       </div>
     `
     : "";

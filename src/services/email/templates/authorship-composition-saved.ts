@@ -1,3 +1,5 @@
+import { safeText } from "./utils";
+
 type AuthorshipCompositionSavedEmailInput = {
   authorName: string;
   responsibleAuthorName: string;
@@ -26,28 +28,28 @@ export function authorshipCompositionSavedEmail({
         </h1>
 
         <p style="margin: 0 0 20px;">
-          Olá, ${authorName}.
+          Olá, ${safeText(authorName)}.
         </p>
 
         <p>
-          Você foi incluído(a) como <strong>${roleLabel}</strong> em um trabalho
+          Você foi incluído(a) como <strong>${safeText(roleLabel)}</strong> em um trabalho
           cadastrado na plataforma da Jornada Acadêmica de Medicina.
         </p>
 
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0 0 8px;">
             <strong>Título do trabalho:</strong><br />
-            ${title}
+            ${safeText(title)}
           </p>
 
           <p style="margin: 0 0 8px;">
             <strong>Autor responsável:</strong><br />
-            ${responsibleAuthorName}
+            ${safeText(responsibleAuthorName)}
           </p>
 
           <p style="margin: 0;">
             <strong>Data do registro da autoria:</strong><br />
-            ${savedAt}
+            ${safeText(savedAt)}
           </p>
         </div>
 

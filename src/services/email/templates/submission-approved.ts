@@ -1,3 +1,5 @@
+import { safeText } from "./utils";
+
 type SubmissionApprovedEmailInput = {
   studentName: string;
   title: string;
@@ -19,7 +21,7 @@ export function submissionApprovedEmail({
         </h1>
 
         <p style="margin: 0 0 20px;">
-          Olá, ${studentName}.
+          Olá, ${safeText(studentName)}.
         </p>
 
         <p>
@@ -30,17 +32,17 @@ export function submissionApprovedEmail({
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0 0 8px;">
             <strong>Título:</strong><br />
-            ${title}
+            ${safeText(title)}
           </p>
 
           <p style="margin: 0 0 8px;">
             <strong>Protocolo:</strong><br />
-            ${protocol ?? "Protocolo não informado"}
+            ${safeText(protocol, "Protocolo não informado")}
           </p>
 
           <p style="margin: 0;">
             <strong>Data da aprovação documental:</strong><br />
-            ${approvedAt}
+            ${safeText(approvedAt)}
           </p>
         </div>
 
