@@ -97,29 +97,61 @@ function validateCorrectionPeriod(
   event: {
     submission_starts_at: string | null;
     submission_ends_at: string | null;
+    correction_ends_at: string | null;
   }
 ) {
   const now = new Date();
 
-  if (
-    event.submission_starts_at &&
-    now < new Date(event.submission_starts_at)
-  ) {
+  if (event.submission_starts_at) {
+    const submissionStartDate = new Date(
+      event.submission_starts_at
+    );
+
+    if (
+      !Number.isNaN(submissionStartDate.getTime()) &&
+      now < submissionStartDate
+    ) {
+      redirectWithMessage(
+        submissionId,
+        "erro",
+        "O período de submissões ainda não iniciou. Não é possível reenviar correções neste momento.",
+        "correcao-section"
+      );
+    }
+  }
+
+  const correctionDeadlineValue =
+    event.correction_ends_at ??
+    event.submission_ends_at;
+
+  if (!correctionDeadlineValue) {
     redirectWithMessage(
       submissionId,
       "erro",
-      "O período de submissões ainda não iniciou. Não é possível reenviar correções neste momento."
+      "O prazo para envio de correções documentais ainda não foi configurado.",
+      "correcao-section"
     );
   }
 
-  if (
-    event.submission_ends_at &&
-    now > new Date(event.submission_ends_at)
-  ) {
+  const correctionDeadline = new Date(
+    correctionDeadlineValue
+  );
+
+  if (Number.isNaN(correctionDeadline.getTime())) {
     redirectWithMessage(
       submissionId,
       "erro",
-      "O período de submissões foi encerrado. Não é mais possível reenviar o trabalho corrigido."
+      "O prazo para envio de correções documentais está inválido.",
+      "correcao-section"
+    );
+  }
+
+  if (now > correctionDeadline) {
+    redirectWithMessage(
+      submissionId,
+      "erro",
+      "O prazo para envio de correções documentais foi encerrado.",
+      "correcao-section"
     );
   }
 }
@@ -255,15 +287,16 @@ export async function resubmitCorrectedSubmission(
           .from("events")
           .select(`
             submission_starts_at,
-            submission_ends_at
+            submission_ends_at,
+            correction_ends_at
           `)
           .eq("id", submission.event_id)
           .maybeSingle(),
-      "A verificação do período de submissões demorou mais que o esperado."
+      "A verificação do prazo de correções demorou mais que o esperado."
     );
 
   if (eventError || !event) {
-    console.error("Erro ao verificar período de submissões:", {
+    console.error("Erro ao verificar prazo de correções:", {
       submissionId,
       message: eventError?.message,
       details: eventError?.details,
@@ -274,7 +307,8 @@ export async function resubmitCorrectedSubmission(
     redirectWithMessage(
       submissionId,
       "erro",
-      "Não foi possível verificar o período de submissões."
+      "Não foi possível verificar o prazo para reenvio das correções.",
+      "correcao-section"
     );
   }
 

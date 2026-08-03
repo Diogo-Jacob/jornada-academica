@@ -173,7 +173,9 @@ export default async function TrabalhoPage({
       ),
 
       events(
-        submission_ends_at
+        submission_ends_at,
+        correction_ends_at,
+        results_publish_at
       )
     `)
     .eq("id", id)
@@ -258,9 +260,13 @@ export default async function TrabalhoPage({
     ? eventValue[0]
     : eventValue;
 
+  const finalResultReleaseDate =
+    event?.results_publish_at ??
+    event?.submission_ends_at;
+
   const canShowFinalResult =
-    Boolean(event?.submission_ends_at) &&
-    new Date() >= new Date(event.submission_ends_at);
+    Boolean(finalResultReleaseDate) &&
+    new Date() >= new Date(finalResultReleaseDate);
 
   const displayedStatus =
     !canShowFinalResult &&

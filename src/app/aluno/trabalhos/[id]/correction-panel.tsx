@@ -20,15 +20,15 @@ type CorrectionPanelProps = {
   submissionId: string;
 };
 
+type SingleEventData = {
+  submission_starts_at: string | null;
+  submission_ends_at: string | null;
+  correction_ends_at: string | null;
+};
+
 type EventData =
-  | {
-      submission_starts_at: string | null;
-      submission_ends_at: string | null;
-    }
-  | {
-      submission_starts_at: string | null;
-      submission_ends_at: string | null;
-    }[]
+  | SingleEventData
+  | SingleEventData[]
   | null;
 
 type CorrectionSubmission = {
@@ -70,7 +70,7 @@ function getCorrectionPeriodStatus(eventValue: EventData) {
   if (!event) {
     return {
       isOpen: false,
-      title: "Período de submissões não localizado",
+      title: "Prazo de correção não localizado",
       description:
         "Não foi possível verificar o prazo de reenvio da correção.",
     };
@@ -78,28 +78,57 @@ function getCorrectionPeriodStatus(eventValue: EventData) {
 
   const now = new Date();
 
-  if (
-    event.submission_starts_at &&
-    now < new Date(event.submission_starts_at)
-  ) {
+  if (event.submission_starts_at) {
+    const submissionStartDate = new Date(
+      event.submission_starts_at
+    );
+
+    if (
+      !Number.isNaN(submissionStartDate.getTime()) &&
+      now < submissionStartDate
+    ) {
+      return {
+        isOpen: false,
+        title: "O período de submissões ainda não iniciou",
+        description: `O reenvio de correções estará disponível a partir de ${formatOptionalDate(
+          event.submission_starts_at
+        )}.`,
+      };
+    }
+  }
+
+  const correctionDeadlineValue =
+    event.correction_ends_at ??
+    event.submission_ends_at;
+
+  if (!correctionDeadlineValue) {
     return {
       isOpen: false,
-      title: "O período de submissões ainda não iniciou",
-      description: `O reenvio de correções estará disponível a partir de ${formatOptionalDate(
-        event.submission_starts_at
-      )}.`,
+      title: "Prazo de correção não configurado",
+      description:
+        "O prazo para reenvio de correções documentais ainda não foi configurado.",
     };
   }
 
-  if (
-    event.submission_ends_at &&
-    now > new Date(event.submission_ends_at)
-  ) {
+  const correctionDeadline = new Date(
+    correctionDeadlineValue
+  );
+
+  if (Number.isNaN(correctionDeadline.getTime())) {
     return {
       isOpen: false,
-      title: "O período de submissões foi encerrado",
+      title: "Prazo de correção inválido",
+      description:
+        "O prazo para reenvio de correções documentais está inválido.",
+    };
+  }
+
+  if (now > correctionDeadline) {
+    return {
+      isOpen: false,
+      title: "O prazo de correções documentais foi encerrado",
       description: `O prazo para reenviar correções encerrou em ${formatOptionalDate(
-        event.submission_ends_at
+        correctionDeadlineValue
       )}.`,
     };
   }
@@ -107,11 +136,9 @@ function getCorrectionPeriodStatus(eventValue: EventData) {
   return {
     isOpen: true,
     title: "Reenvio de correção disponível",
-    description: event.submission_ends_at
-      ? `Você pode reenviar o trabalho corrigido até ${formatOptionalDate(
-          event.submission_ends_at
-        )}.`
-      : "Você pode reenviar o trabalho corrigido enquanto o período de submissões estiver aberto.",
+    description: `Você pode reenviar o trabalho corrigido até ${formatOptionalDate(
+      correctionDeadlineValue
+    )}.`,
   };
 }
 
@@ -135,7 +162,8 @@ async function getCorrectionSubmission(
 
       events (
         submission_starts_at,
-        submission_ends_at
+        submission_ends_at,
+        correction_ends_at
       )
     `)
     .eq("id", submissionId)
@@ -357,8 +385,8 @@ export async function CorrectionConfirmationPanel({
           </form>
         ) : (
           <div className="rounded-3xl border border-dashed border-[#d9e8ef] bg-[#f7fbfd] p-5 text-sm leading-6 text-[#5f7d90]">
-            O botão de reenvio foi bloqueado porque o prazo de submissões não
-            está aberto.
+            O botão de reenvio foi bloqueado porque o prazo de correções
+            documentais não está aberto.
           </div>
         )}
       </CardContent>
