@@ -107,6 +107,41 @@ const commissionMembers = [
   },
 ];
 
+const dateScheduleItems = [
+  {
+    event: "Publicação do edital",
+    date: "04/08",
+  },
+  {
+    event: "Abertura do período de submissão de trabalhos",
+    date: "04/08",
+  },
+  {
+    event: "Encerramento do período de submissão de trabalhos",
+    date: "22/08",
+  },
+  {
+    event:
+      "Encerramento do envio de correções de documentos obrigatórios",
+    date: "24/08",
+  },
+  {
+    event:
+      "Divulgação dos resultados dos trabalhos aprovados",
+    date: "28/09",
+  },
+  {
+    event:
+      "Exposição e avaliação oral dos pôsteres",
+    date: "05 e 06/10",
+  },
+  {
+    event:
+      "Apresentação oral dos 5 trabalhos selecionados",
+    date: "06/10",
+  },
+];
+
 const sponsors = [
   {
     name: "UNIVILLE",
@@ -353,39 +388,106 @@ export default function HomePage() {
           className="campgo-section-dark px-6 py-24 text-white lg:px-8"
         >
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
-              <div>
-                <div className="mb-6 flex items-center gap-4 text-[#6fb6cf]">
-                  <span className="h-px w-10 bg-[#6fb6cf]" />
+            <div className="mb-16 max-w-3xl">
+              <div className="mb-6 flex items-center gap-4 text-[#6fb6cf]">
+                <span className="h-px w-10 bg-[#6fb6cf]" />
 
-                  <p className="text-sm font-bold uppercase tracking-[0.35em]">
-                    Programação
-                  </p>
-                </div>
+                <p className="text-sm font-bold uppercase tracking-[0.35em]">
+                  Programação
+                </p>
+              </div>
 
-                <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                  Cronograma
+              <h2 className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Cronograma
+                <span className="block text-[#6fb6cf]">
+                  da Jornada
+                </span>
+              </h2>
+
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-[#b9d4df]">
+                Acompanhe as principais datas da IX Jornada Acadêmica de Medicina, desde a abertura das submissões até as apresentações
+                dos trabalhos selecionados.
+              </p>
+            </div>
+
+            <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/10 backdrop-blur">
+                <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
+                  Etapas oficiais
+                </p>
+
+                <h3 className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+                  Datas importantes
                   <span className="block text-[#6fb6cf]">
-                    da Jornada
+                    para submissão e apresentação
                   </span>
-                </h2>
+                </h3>
 
-                <p className="mt-6 max-w-xl text-lg leading-8 text-[#b9d4df]">
-                  A programação completa será divulgada em breve. Por enquanto,
-                  confira as principais etapas previstas para a Jornada Acadêmica de
-                  Medicina.
+                <p className="mt-5 text-base leading-7 text-[#b9d4df]">
+                  Este cronograma reúne os principais prazos previstos em edital.
+                  Fique atento às datas de submissão, envio de correções,
+                  divulgação dos resultados e apresentações durante o evento.
                 </p>
               </div>
 
               <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/10 backdrop-blur">
                 <div className="border-b border-white/10 bg-white/[0.03] p-6">
                   <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
-                    Programação preliminar
+                    Cronograma de datas
                   </p>
 
                   <p className="mt-2 text-base leading-7 text-[#b9d4df]">
-                    Horários, convidados e atividades poderão ser atualizados pela
-                    Comissão Organizadora.
+                    Confira os prazos principais para participação e acompanhamento
+                    dos trabalhos científicos.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[560px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-white/[0.03]">
+                        <th className="px-6 py-4 text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
+                          Evento
+                        </th>
+
+                        <th className="w-36 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
+                          Data
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-white/10">
+                      {dateScheduleItems.map((item) => (
+                        <tr
+                          key={`${item.event}-${item.date}`}
+                          className="transition hover:bg-white/[0.03]"
+                        >
+                          <td className="px-6 py-5 text-base font-medium leading-7 text-white">
+                            {item.event}
+                          </td>
+
+                          <td className="px-6 py-5 text-center">
+                            <span className="inline-flex rounded-full border border-[#6fb6cf]/30 bg-[#6fb6cf]/10 px-4 py-2 text-sm font-bold text-[#9ed8eb]">
+                              {item.date}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-20 grid gap-12 lg:grid-cols-[1.25fr_0.75fr] lg:items-start">
+              <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/10 backdrop-blur">
+                <div className="border-b border-white/10 bg-white/[0.03] p-6">
+                  <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
+                    Cronograma de horários
+                  </p>
+
+                  <p className="mt-2 text-base leading-7 text-[#b9d4df]">
+                    Programação prevista para os dias do evento.
                   </p>
                 </div>
 
@@ -400,6 +502,26 @@ export default function HomePage() {
                     />
                   ))}
                 </div>
+              </div>
+
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/10 backdrop-blur">
+                <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#6fb6cf]">
+                  Durante o evento
+                </p>
+
+                <h3 className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+                  Atividades,
+                  <span className="block text-[#6fb6cf]">
+                    apresentações e avaliação
+                  </span>
+                </h3>
+
+                <p className="mt-5 text-base leading-7 text-[#b9d4df]">
+                  Além das atividades acadêmicas da Jornada, os trabalhos aprovados
+                  participarão da exposição em pôster e da avaliação oral conforme
+                  as orientações da Comissão Científica.
+                </p>
+
               </div>
             </div>
           </div>
