@@ -682,11 +682,43 @@ export async function assignReplacementEvaluator(
     );
   }
 
+  let successMessage =
+    "Avaliador substituto atribuído com sucesso.";
+
   if (!cancelledDeclinedAssignment) {
-    redirectWithMessage(
-      "erro",
-      "O substituto foi atribuído, mas a avaliação recusada já havia sido alterada. Atualize a página."
-    );
+    const {
+      data: currentDeclinedAssignment,
+      error: currentDeclinedAssignmentError,
+    } = await supabase
+      .from("evaluation_assignments")
+      .select("id, status")
+      .eq("id", declinedAssignmentId)
+      .maybeSingle();
+
+    if (currentDeclinedAssignmentError) {
+      console.error(
+        "Substituto atribuído, mas não foi possível consultar a avaliação recusada:",
+        {
+          submissionId,
+          declinedAssignmentId,
+          message: currentDeclinedAssignmentError.message,
+          details: currentDeclinedAssignmentError.details,
+          hint: currentDeclinedAssignmentError.hint,
+          code: currentDeclinedAssignmentError.code,
+        }
+      );
+
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. Atualize a página para conferir o status atual da avaliação.";
+    } else if (
+      currentDeclinedAssignment?.status === "cancelled"
+    ) {
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. A avaliação recusada já foi finalizada.";
+    } else {
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. Atualize a página para conferir o status atual da avaliação.";
+    }
   }
 
   const {
@@ -700,7 +732,10 @@ export async function assignReplacementEvaluator(
           status: "under_evaluation",
         })
         .eq("id", submissionId)
-        .eq("status", "evaluator_replacement_required")
+        .in("status", [
+          "evaluator_replacement_required",
+          "under_evaluation",
+        ])
         .select("id, status")
         .maybeSingle(),
     "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
@@ -726,10 +761,36 @@ export async function assignReplacementEvaluator(
   }
 
   if (!updatedSubmission) {
-    redirectWithMessage(
-      "erro",
-      "O substituto foi atribuído, mas o status da submissão já havia sido alterado. Atualize a página."
-    );
+    const {
+      data: currentSubmission,
+      error: currentSubmissionError,
+    } = await supabase
+      .from("submissions")
+      .select("id, status")
+      .eq("id", submissionId)
+      .maybeSingle();
+
+    if (currentSubmissionError) {
+      console.error(
+        "Substituto atribuído, mas não foi possível consultar o status atual da submissão:",
+        {
+          submissionId,
+          message: currentSubmissionError.message,
+          details: currentSubmissionError.details,
+          hint: currentSubmissionError.hint,
+          code: currentSubmissionError.code,
+        }
+      );
+
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. Atualize a página para conferir o status atual da submissão.";
+    } else if (currentSubmission?.status === "under_evaluation") {
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. A submissão já está em avaliação.";
+    } else {
+      successMessage =
+        "Avaliador substituto atribuído com sucesso. Atualize a página para conferir o status atual da submissão.";
+    }
   }
 
   await sendEvaluationAssignedEmail({
@@ -745,7 +806,7 @@ export async function assignReplacementEvaluator(
 
   redirectWithMessage(
     "sucesso",
-    "Avaliador substituto atribuído com sucesso."
+    successMessage
   );
 }
 
@@ -856,7 +917,10 @@ export async function assignThirdEvaluator(
           status: "under_evaluation",
         })
         .eq("id", submissionId)
-        .eq("status", "third_evaluator_required")
+        .in("status", [
+          "third_evaluator_required",
+          "under_evaluation",
+        ])
         .select("id, status")
         .maybeSingle(),
     "A tentativa de atualizar o status da submissão demorou mais que o esperado.",
@@ -881,11 +945,40 @@ export async function assignThirdEvaluator(
     );
   }
 
+  let successMessage =
+    "Terceiro avaliador atribuído com sucesso.";
+
   if (!updatedSubmission) {
-    redirectWithMessage(
-      "erro",
-      "O terceiro avaliador foi atribuído, mas o status da submissão já havia sido alterado. Atualize a página."
-    );
+    const {
+      data: currentSubmission,
+      error: currentSubmissionError,
+    } = await supabase
+      .from("submissions")
+      .select("id, status")
+      .eq("id", submissionId)
+      .maybeSingle();
+
+    if (currentSubmissionError) {
+      console.error(
+        "Terceiro avaliador atribuído, mas não foi possível consultar o status atual:",
+        {
+          submissionId,
+          message: currentSubmissionError.message,
+          details: currentSubmissionError.details,
+          hint: currentSubmissionError.hint,
+          code: currentSubmissionError.code,
+        }
+      );
+
+      successMessage =
+        "Terceiro avaliador atribuído com sucesso. Atualize a página para conferir o status atual da submissão.";
+    } else if (currentSubmission?.status === "under_evaluation") {
+      successMessage =
+        "Terceiro avaliador atribuído com sucesso. A submissão já está em avaliação.";
+    } else {
+      successMessage =
+        "Terceiro avaliador atribuído com sucesso. Atualize a página para conferir o status atual da submissão.";
+    }
   }
 
   await sendEvaluationAssignedEmail({
@@ -901,6 +994,6 @@ export async function assignThirdEvaluator(
 
   redirectWithMessage(
     "sucesso",
-    "Terceiro avaliador atribuído com sucesso."
+    successMessage
   );
 }
