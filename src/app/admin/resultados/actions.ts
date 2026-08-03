@@ -347,61 +347,79 @@ export async function sendResultsAvailableEmails() {
         secondAuthor.display_order
     );
 
-    for (const author of authors) {
-      if (!author.email) {
-        continue;
-      }
+    const responsibleAuthor =
+      authors.find(
+        (author) => author.author_role === "responsible"
+      ) ??
+      authors.find(
+        (author) => author.display_order === 1
+      ) ??
+      null;
 
-      try {
-        const emailResult = await withTimeout(
-          async () =>
-            await sendEmail({
-              to: author.email,
-              subject: `Trabalho selecionado - ${
-                submission.protocol ?? submission.title
-              }`,
-              html: resultsAvailableEmail({
-                authorName:
-                  author.full_name ?? "Autor(a)",
-                title: submission.title,
-                protocol: submission.protocol,
-                resultLabel: getResultLabel(submission.status),
-              }),
-            }),
-          "O envio do e-mail de resultado demorou mais que o esperado.",
-          EMAIL_TIMEOUT_MS
-        );
+    if (!responsibleAuthor?.email) {
+      failedCount += 1;
 
-        if (emailResult.success) {
-          sentCount += 1;
-        } else {
-          failedCount += 1;
-
-          console.error(
-            "E-mail de resultado não enviado:",
-            {
-              authorEmail: author.email,
-              submissionId: submission.id,
-              emailResult,
-            }
-          );
+      console.error(
+        "Trabalho selecionado sem e-mail do autor responsável:",
+        {
+          submissionId: submission.id,
+          protocol: submission.protocol,
+          title: submission.title,
         }
-      } catch (emailError) {
+      );
+
+      continue;
+    }
+
+    try {
+      const emailResult = await withTimeout(
+        async () =>
+          await sendEmail({
+            to: responsibleAuthor.email,
+            subject: `Trabalho selecionado - ${
+              submission.protocol ?? submission.title
+            }`,
+            html: resultsAvailableEmail({
+              authorName:
+                responsibleAuthor.full_name ?? "Autor(a)",
+              title: submission.title,
+              protocol: submission.protocol,
+              resultLabel: getResultLabel(submission.status),
+            }),
+          }),
+        "O envio do e-mail de resultado demorou mais que o esperado.",
+        EMAIL_TIMEOUT_MS
+      );
+
+      if (emailResult.success) {
+        sentCount += 1;
+      } else {
         failedCount += 1;
 
         console.error(
-          "E-mail de resultado falhou ou demorou demais:",
+          "E-mail de resultado não enviado:",
           {
-            authorEmail: author.email,
+            authorEmail: responsibleAuthor.email,
             submissionId: submission.id,
-            message:
-              emailError instanceof Error
-                ? emailError.message
-                : "Erro desconhecido",
-            error: emailError,
+            emailResult,
           }
         );
       }
+    } catch (emailError) {
+      failedCount += 1;
+
+      console.error(
+        "E-mail de resultado falhou ou demorou demais:",
+        {
+          authorEmail: responsibleAuthor.email,
+          submissionId: submission.id,
+          message:
+            emailError instanceof Error
+              ? emailError.message
+              : "Erro desconhecido",
+          error: emailError,
+        }
+      );
     }
   }
 
