@@ -30,6 +30,7 @@ type Evaluator = {
   id: string;
   full_name: string;
   email: string;
+  activeAssignmentsCount?: number;
 };
 
 type Assignment = {
@@ -217,6 +218,70 @@ export default async function AdminAvaliacoesPage({
 
   const evaluatorList = (evaluators ?? []) as Evaluator[];
 
+  const evaluatorIds = evaluatorList.map(
+    (evaluator) => evaluator.id
+  );
+
+  const evaluatorActiveAssignmentsCount = new Map<
+    string,
+    number
+  >();
+
+  if (evaluatorIds.length > 0) {
+    const {
+      data: evaluatorAssignments,
+      error: evaluatorAssignmentsError,
+    } = await supabase
+      .from("evaluation_assignments")
+      .select("id, evaluator_id, status")
+      .in("evaluator_id", evaluatorIds)
+      .in("status", [
+        "assigned",
+        "in_progress",
+        "completed",
+      ]);
+
+    if (evaluatorAssignmentsError) {
+      console.error(
+        "Erro ao carregar contagem de trabalhos dos avaliadores:",
+        evaluatorAssignmentsError
+      );
+    }
+
+    for (const assignment of evaluatorAssignments ?? []) {
+      const currentCount =
+        evaluatorActiveAssignmentsCount.get(
+          assignment.evaluator_id
+        ) ?? 0;
+
+      evaluatorActiveAssignmentsCount.set(
+        assignment.evaluator_id,
+        currentCount + 1
+      );
+    }
+  }
+
+  const evaluatorListWithCounts = evaluatorList
+    .map((evaluator) => ({
+      ...evaluator,
+      activeAssignmentsCount:
+        evaluatorActiveAssignmentsCount.get(evaluator.id) ?? 0,
+    }))
+    .sort((firstEvaluator, secondEvaluator) => {
+      const countDifference =
+        (firstEvaluator.activeAssignmentsCount ?? 0) -
+        (secondEvaluator.activeAssignmentsCount ?? 0);
+
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+
+      return firstEvaluator.full_name.localeCompare(
+        secondEvaluator.full_name,
+        "pt-BR"
+      );
+    });
+
   let assignmentList: Assignment[] = [];
 
   if (submissionIds.length > 0) {
@@ -249,7 +314,7 @@ export default async function AdminAvaliacoesPage({
   }
 
   const evaluatorMap = new Map(
-    evaluatorList.map((evaluator) => [
+    evaluatorListWithCounts.map((evaluator) => [
       evaluator.id,
       evaluator,
     ])
@@ -437,20 +502,45 @@ export default async function AdminAvaliacoesPage({
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {evaluatorList.map((evaluator) => (
-                <div
-                  key={evaluator.id}
-                  className="rounded-3xl border border-[#d9e8ef] bg-[#f7fbfd] p-5"
-                >
-                  <p className="font-semibold text-[#102a3d]">
-                    {evaluator.full_name}
-                  </p>
+              {evaluatorListWithCounts.map((evaluator) => {
+                const activeAssignmentsCount =
+                  evaluator.activeAssignmentsCount ?? 0;
 
-                  <p className="mt-1 break-all text-sm text-[#5f7d90]">
-                    {evaluator.email}
-                  </p>
-                </div>
-              ))}
+                return (
+                  <div
+                    key={evaluator.id}
+                    className="rounded-3xl border border-[#d9e8ef] bg-[#f7fbfd] p-5 transition hover:border-[#b9d4df] hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-[#102a3d]">
+                          {evaluator.full_name}
+                        </p>
+
+                        <p className="mt-1 break-all text-sm text-[#5f7d90]">
+                          {evaluator.email}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 rounded-full border border-[#b9d4df] bg-[#eef7fa] px-3 py-1 text-xs font-semibold text-[#245b7a]">
+                        {activeAssignmentsCount}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#d9e8ef] bg-white px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#5f7d90]">
+                        Trabalhos atribuídos
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-[#102a3d]">
+                        {activeAssignmentsCount === 1
+                          ? "1 trabalho atribuído"
+                          : `${activeAssignmentsCount} trabalhos atribuídos`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -524,7 +614,7 @@ export default async function AdminAvaliacoesPage({
                   );
 
                 const availableNewEvaluators =
-                  evaluatorList.filter(
+                  evaluatorListWithCounts.filter(
                     (evaluator) =>
                       !activeOrHistoricEvaluatorIds.has(
                         evaluator.id
@@ -816,14 +906,14 @@ export default async function AdminAvaliacoesPage({
                               id={`evaluatorOneId-${submission.id}`}
                               name="evaluatorOneId"
                               label="Primeiro avaliador"
-                              options={evaluatorList}
+                              options={evaluatorListWithCounts}
                             />
 
                             <SelectField
                               id={`evaluatorTwoId-${submission.id}`}
                               name="evaluatorTwoId"
                               label="Segundo avaliador"
-                              options={evaluatorList}
+                              options={evaluatorListWithCounts}
                             />
                           </div>
 
@@ -831,14 +921,14 @@ export default async function AdminAvaliacoesPage({
                             <Button
                               type="submit"
                               className="bg-[#245b7a] hover:bg-[#173f59]"
-                              disabled={evaluatorList.length < 2}
+                              disabled={evaluatorListWithCounts.length < 2}
                             >
                               <Send className="size-4" />
                               Distribuir para avaliação
                             </Button>
                           </div>
 
-                          {evaluatorList.length < 2 && (
+                          {evaluatorListWithCounts.length < 2 && (
                             <p className="mt-3 text-sm text-red-700">
                               É necessário ter pelo menos dois avaliadores
                               ativos.
@@ -966,14 +1056,19 @@ function SelectField({
           Selecione
         </option>
 
-        {options.map((evaluator) => (
-          <option
-            key={evaluator.id}
-            value={evaluator.id}
-          >
-            {evaluator.full_name}
-          </option>
-        ))}
+        {options.map((evaluator) => {
+          const activeAssignmentsCount =
+            evaluator.activeAssignmentsCount ?? 0;
+
+          return (
+            <option
+              key={evaluator.id}
+              value={evaluator.id}
+            >
+              {evaluator.full_name} — {activeAssignmentsCount} atribuído(s)
+            </option>
+          );
+        })}
       </select>
     </div>
   );
