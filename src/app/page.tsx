@@ -10,9 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { CreatorCredit } from "@/components/creator-credit";
 
-const editalDisponivel = false;
+const editalDisponivel = true;
 
-const editalUrl = "/edital-jornada-academica-medicina.pdf";
+const editalUrl = "/Edital_IX_Jornada_Academica_2026.pdf";
 
 const eventLocationName =
   "Universidade da Região de Joinville — UNIVILLE";
@@ -78,31 +78,31 @@ const scheduleItems = [
 
 const commissionMembers = [
   {
-    name: "Nome da pessoa 1",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 2",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 3",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 4",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 5",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 6",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
   {
-    name: "Nome da pessoa 7",
+    name: "Em Breve",
     image: "/campgo-logo.png",
   },
 ];
@@ -352,7 +352,7 @@ export default function HomePage() {
               <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 {commissionMembers.map((member, index) => (
                   <RevealOnScroll
-                    key={member.name}
+                    key={`${member.name}-${index}`}
                     delay={index * 80}
                   >
                     <div className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.06] shadow-2xl shadow-black/10 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-[#6fb6cf]/50 hover:bg-white/[0.09]">
@@ -699,26 +699,20 @@ export default function HomePage() {
                     Edital oficial da Jornada Acadêmica de Medicina
                   </h3>
 
-                  <p className="mt-4 text-lg leading-8 text-[#b9d4df]">
-                    O edital reunirá as regras de participação, prazos, orientações e
-                    informações oficiais do evento.
-                  </p>
-
-                  {editalDisponivel ? (
+                  {editalDisponivel && (
                     <Button
                       asChild
                       className="mt-6 h-12 bg-[#6fb6cf] px-6 text-base font-bold text-[#07162a] hover:bg-[#8cc9dc]"
                     >
-                      <Link href={editalUrl} target="_blank">
+                      <Link
+                        href={editalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         <Download className="size-4" />
                         Baixar edital
                       </Link>
                     </Button>
-                  ) : (
-                    <p className="mt-6 rounded-2xl border border-white/10 bg-[#102a3d]/80 p-4 text-base text-[#d9e8ef]">
-                      O documento será publicado aqui assim que for finalizado pela
-                      Comissão Organizadora.
-                    </p>
                   )}
                 </div>
               </div>
