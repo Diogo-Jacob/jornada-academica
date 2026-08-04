@@ -1,18 +1,16 @@
 import { safeText } from "./utils";
 
-type ResultsAvailableEmailInput = {
+type ResultNotSelectedEmailInput = {
   authorName: string;
   title: string;
   protocol: string | null;
-  resultLabel: string;
 };
 
-export function resultsAvailableEmail({
+export function resultNotSelectedEmail({
   authorName,
   title,
   protocol,
-  resultLabel,
-}: ResultsAvailableEmailInput) {
+}: ResultNotSelectedEmailInput) {
   return `
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <div style="max-width: 640px; margin: 0 auto; padding: 24px;">
@@ -25,8 +23,9 @@ export function resultsAvailableEmail({
         </p>
 
         <p>
-          Temos a satisfação de informar que o trabalho abaixo foi selecionado
-          para apresentação na Jornada Acadêmica de Medicina.
+          Informamos que o trabalho abaixo foi avaliado pela Comissão Científica
+          da Jornada Acadêmica de Medicina, porém não ficou entre os trabalhos
+          selecionados para apresentação nesta edição.
         </p>
 
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 24px 0;">
@@ -35,16 +34,21 @@ export function resultsAvailableEmail({
             ${safeText(title)}
           </p>
 
-          <p style="margin: 0 0 8px;">
+          <p style="margin: 0;">
             <strong>Protocolo:</strong><br />
             ${safeText(protocol, "Protocolo não informado")}
           </p>
-
-          <p style="margin: 0;">
-            <strong>Modalidade de apresentação:</strong><br />
-            ${safeText(resultLabel)}
-          </p>
         </div>
+
+        <p>
+          Agradecemos pela submissão e pelo interesse em contribuir com a produção
+          científica do evento.
+        </p>
+
+        <p>
+          Reforçamos que a não seleção para apresentação não diminui a importância
+          da iniciativa acadêmica e do envolvimento dos autores na pesquisa.
+        </p>
 
         <p style="margin-top: 24px;">
           Atenciosamente,<br />

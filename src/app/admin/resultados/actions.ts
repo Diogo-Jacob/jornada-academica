@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sendEmail } from "@/services/email/send-email";
 import { resultsAvailableEmail } from "@/services/email/templates/results-available";
+import { resultNotSelectedEmail } from "@/services/email/templates/result-not-selected";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 
 const ACTION_TIMEOUT_MS = 30_000;
@@ -308,11 +309,11 @@ export async function sendResultsAvailableEmails() {
       .in("status", [
         "selected_oral",
         "selected_banner",
+        "not_selected",
       ])
       .order("updated_at", {
         ascending: true,
-      })
-      .limit(40);
+      });
 
   if (submissionsError) {
     console.error("Erro ao carregar trabalhos selecionados:", {
@@ -372,25 +373,44 @@ export async function sendResultsAvailableEmails() {
     }
 
     try {
+      const isSelected = [
+        "selected_oral",
+        "selected_banner",
+      ].includes(submission.status);
+
+      const emailSubject = isSelected
+        ? `Trabalho selecionado - ${
+            submission.protocol ?? submission.title
+          }`
+        : `Resultado da avaliação - ${
+            submission.protocol ?? submission.title
+          }`;
+
+      const emailHtml = isSelected
+        ? resultsAvailableEmail({
+            authorName:
+              responsibleAuthor.full_name ?? "Autor(a)",
+            title: submission.title,
+            protocol: submission.protocol,
+            resultLabel: getResultLabel(submission.status),
+          })
+        : resultNotSelectedEmail({
+            authorName:
+              responsibleAuthor.full_name ?? "Autor(a)",
+            title: submission.title,
+            protocol: submission.protocol,
+          });
+
       const emailResult = await withTimeout(
         async () =>
           await sendEmail({
             to: responsibleAuthor.email,
-            subject: `Trabalho selecionado - ${
-              submission.protocol ?? submission.title
-            }`,
-            html: resultsAvailableEmail({
-              authorName:
-                responsibleAuthor.full_name ?? "Autor(a)",
-              title: submission.title,
-              protocol: submission.protocol,
-              resultLabel: getResultLabel(submission.status),
-            }),
+            subject: emailSubject,
+            html: emailHtml,
           }),
         "O envio do e-mail de resultado demorou mais que o esperado.",
         EMAIL_TIMEOUT_MS
       );
-
       if (emailResult.success) {
         sentCount += 1;
       } else {
@@ -435,12 +455,12 @@ export async function sendResultsAvailableEmails() {
   if (failedCount > 0) {
     redirectWithMessage(
       "sucesso",
-      `${sentCount} e-mail(s) enviados para trabalhos selecionados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
+      `${sentCount} e-mail(s) de resultado enviados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
     );
   }
 
   redirectWithMessage(
     "sucesso",
-    `${sentCount} e-mail(s) enviados com sucesso para os trabalhos selecionados.`
+    `${sentCount} e-mail(s) de resultado enviados com sucesso.`
   );
 }

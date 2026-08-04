@@ -732,21 +732,21 @@ export default async function AdminResultadosPage({
     (row) => row.officialScore.usedClosestPair
   );
 
-  const selectedRowsCount =
-    oralRows.length + bannerRows.length;
+  const finalResultRowsCount =
+    oralRows.length + bannerRows.length + notSelectedRows.length;
 
   const canSendResultsNotice =
-    hasResultsReleaseDatePassed && selectedRowsCount > 0;
+    hasResultsReleaseDatePassed && finalResultRowsCount > 0;
 
-    const resultsNoticeDisabledMessage = !resultsReleaseDate
-      ? "Configure a data de publicação dos resultados antes de liberar o aviso."
-      : !hasResultsReleaseDatePassed
-        ? `O envio do aviso ficará disponível após a data de publicação dos resultados: ${formatDate(
-            resultsReleaseDate.toISOString()
-          )}.`
-        : selectedRowsCount === 0
-          ? "Nenhum trabalho selecionado para apresentação oral ou banner foi encontrado."
-          : null;
+  const resultsNoticeDisabledMessage = !resultsReleaseDate
+    ? "Configure a data de publicação dos resultados antes de liberar o aviso."
+    : !hasResultsReleaseDatePassed
+      ? `O envio do aviso ficará disponível após a data de publicação dos resultados: ${formatDate(
+          resultsReleaseDate.toISOString()
+        )}.`
+      : finalResultRowsCount === 0
+        ? "Nenhum trabalho com resultado final foi encontrado."
+        : null;
 
   const bestResult = completedRows[0] ?? null;
 
@@ -810,7 +810,7 @@ export default async function AdminResultadosPage({
                     className="bg-white text-[#102a3d] hover:bg-[#eef7fa] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Megaphone className="size-4" />
-                    Enviar aviso de resultados
+                    Enviar e-mails de resultados
                   </Button>
                 </form>
 
