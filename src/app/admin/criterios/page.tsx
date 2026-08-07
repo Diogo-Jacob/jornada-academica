@@ -327,7 +327,7 @@ export default async function AdminCriteriosPage({
         </div>
 
         <CriteriaBoard
-          criteria={activeCriteriaList}
+          criteria={allCriteriaList}
           scoreOptions={scoreOptionList}
         />
       </section>

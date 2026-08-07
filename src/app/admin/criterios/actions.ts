@@ -284,7 +284,6 @@ export async function updateCriterion(formData: FormData) {
           })
           .eq("id", criterionId)
           .eq("event_id", eventId)
-          .eq("is_active", true)
           .select("id")
           .maybeSingle(),
       "A edição do critério demorou mais que o esperado.",
@@ -337,10 +336,9 @@ export async function deleteCriterion(formData: FormData) {
       async () =>
         await supabase
           .from("evaluation_criteria")
-          .select("id, name")
+          .select("id, name, is_active")
           .eq("id", criterionId)
           .eq("event_id", eventId)
-          .eq("is_active", true)
           .maybeSingle(),
       "A busca pelo critério demorou mais que o esperado.",
       DATABASE_TIMEOUT_MS
@@ -364,46 +362,56 @@ export async function deleteCriterion(formData: FormData) {
   if (!criterion) {
     redirectWithMessage(
       "erro",
-      "O critério selecionado não foi encontrado ou já está inativo."
+      "O critério selecionado não foi encontrado."
     );
   }
 
-  const { data: disabledCriterion, error } =
+  const nextStatus = !criterion.is_active;
+
+  const { data: updatedCriterion, error } =
     await withTimeout(
       async () =>
         await supabase
           .from("evaluation_criteria")
           .update({
-            is_active: false,
+            is_active: nextStatus,
           })
           .eq("id", criterionId)
           .eq("event_id", eventId)
-          .eq("is_active", true)
           .select("id")
           .maybeSingle(),
-      "A exclusão do critério demorou mais que o esperado.",
+      nextStatus
+        ? "A ativação do critério demorou mais que o esperado."
+        : "A desativação do critério demorou mais que o esperado.",
       DATABASE_TIMEOUT_MS
     );
 
   if (error) {
-    console.error("Erro ao desativar critério:", {
-      criterionId,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error(
+      nextStatus
+        ? "Erro ao ativar critério:"
+        : "Erro ao desativar critério:",
+      {
+        criterionId,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      }
+    );
 
     redirectWithMessage(
       "erro",
-      `Não foi possível excluir o critério: ${error.message}`
+      nextStatus
+        ? `Não foi possível ativar o critério: ${error.message}`
+        : `Não foi possível desativar o critério: ${error.message}`
     );
   }
 
-  if (!disabledCriterion) {
+  if (!updatedCriterion) {
     redirectWithMessage(
       "erro",
-      "O critério não pôde ser excluído porque já foi alterado. Atualize a página e tente novamente."
+      "O critério não pôde ser atualizado porque já foi alterado. Atualize a página e tente novamente."
     );
   }
 
@@ -412,7 +420,9 @@ export async function deleteCriterion(formData: FormData) {
 
   redirectWithMessage(
     "sucesso",
-    `Critério "${criterion.name}" excluído com sucesso.`
+    nextStatus
+      ? `Critério "${criterion.name}" ativado com sucesso.`
+      : `Critério "${criterion.name}" desativado com sucesso.`
   );
 }
 
@@ -475,7 +485,6 @@ export async function updateCriteriaOrder(formData: FormData) {
           .from("evaluation_criteria")
           .select("id")
           .eq("event_id", eventId)
-          .eq("is_active", true)
           .in("id", orderedCriterionIds),
       "A validação dos critérios demorou mais que o esperado.",
       DATABASE_TIMEOUT_MS
@@ -513,7 +522,6 @@ export async function updateCriteriaOrder(formData: FormData) {
             })
             .eq("id", criterionId)
             .eq("event_id", eventId)
-            .eq("is_active", true)
             .select("id")
             .maybeSingle()
         )

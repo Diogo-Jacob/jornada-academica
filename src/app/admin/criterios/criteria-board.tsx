@@ -9,6 +9,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  RotateCcw,
   Save,
   Settings2,
   Trash2,
@@ -215,23 +216,33 @@ function SaveCriterionButton() {
   );
 }
 
-function ConfirmDisableCriterionButton() {
+function ConfirmCriterionStatusButton({
+  isActive,
+}: {
+  isActive: boolean;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <Button
       type="submit"
-      variant="destructive"
+      variant={isActive ? "destructive" : "outline"}
       disabled={pending}
-      className="disabled:cursor-not-allowed disabled:opacity-70"
+      className={
+        isActive
+          ? "disabled:cursor-not-allowed disabled:opacity-70"
+          : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-70"
+      }
     >
       {pending ? (
         <>
           <Loader2 className="size-4 animate-spin" />
-          Desativando...
+          {isActive ? "Desativando..." : "Ativando..."}
         </>
-      ) : (
+      ) : isActive ? (
         "Confirmar desativação"
+      ) : (
+        "Confirmar ativação"
       )}
     </Button>
   );
@@ -412,9 +423,15 @@ export function CriteriaBoard({
                         ponto(s)
                       </span>
 
-                      <span className="inline-flex items-center gap-1 rounded-full border border-green-300 bg-green-50 px-3 py-1 text-xs font-medium text-green-800">
+                      <span
+                        className={
+                          criterion.is_active
+                            ? "inline-flex items-center gap-1 rounded-full border border-green-300 bg-green-50 px-3 py-1 text-xs font-medium text-green-800"
+                            : "inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                        }
+                      >
                         <CheckCircle2 className="size-3" />
-                        Ativo
+                        {criterion.is_active ? "Ativo" : "Inativo"}
                       </span>
                     </div>
 
@@ -450,7 +467,12 @@ export function CriteriaBoard({
 
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant={criterion.is_active ? "destructive" : "outline"}
+                    className={
+                      criterion.is_active
+                        ? ""
+                        : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                    }
                     onClick={() => {
                       setConfirmingDeletionCriterionId(
                         isConfirmingDeletion
@@ -461,8 +483,13 @@ export function CriteriaBoard({
                       setEditingCriterionId(null);
                     }}
                   >
-                    <Trash2 className="size-4" />
-                    Desativar
+                    {criterion.is_active ? (
+                      <Trash2 className="size-4" />
+                    ) : (
+                      <RotateCcw className="size-4" />
+                    )}
+
+                    {criterion.is_active ? "Desativar" : "Ativar"}
                   </Button>
                 </div>
               </div>
@@ -600,16 +627,21 @@ export function CriteriaBoard({
                 <div className="border-t border-red-200 bg-red-50 p-5">
                   <div className="rounded-3xl border border-red-200 bg-white p-5">
                     <h3 className="font-semibold text-red-800">
-                      Confirmar desativação
+                      {criterion.is_active
+                        ? "Confirmar desativação"
+                        : "Confirmar ativação"}
                     </h3>
 
                     <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-                      Tem certeza que deseja desativar o critério{" "}
+                      Tem certeza que deseja{" "}
+                      {criterion.is_active ? "desativar" : "ativar"} o critério{" "}
                       <strong className="text-[#102a3d]">
                         {criterion.name}
                       </strong>
-                      ? Ele deixará de aparecer para os avaliadores, mas o
-                      histórico de avaliações anteriores será preservado.
+                      ?
+                      {criterion.is_active
+                        ? " Ele deixará de aparecer para os avaliadores, mas o histórico de avaliações anteriores será preservado."
+                        : " Ele voltará a aparecer no formulário dos avaliadores."}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -620,7 +652,9 @@ export function CriteriaBoard({
                           value={criterion.id}
                         />
 
-                        <ConfirmDisableCriterionButton />
+                        <ConfirmCriterionStatusButton
+                          isActive={criterion.is_active}
+                        />
                       </form>
 
                       <Button
