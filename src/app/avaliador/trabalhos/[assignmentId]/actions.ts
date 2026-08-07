@@ -688,11 +688,23 @@ export async function completeEvaluation(
       formData.get(`criterion_${criterion.id}`) ?? ""
     ).trim();
 
+    const observation = String(
+      formData.get(`observation_${criterion.id}`) ?? ""
+    ).trim();
+
     if (!selectedOptionId) {
       redirectWithMessage(
         assignmentId,
         "erro",
         `Ainda falta responder o critério: ${criterion.name}.`
+      );
+    }
+
+    if (!observation) {
+      redirectWithMessage(
+        assignmentId,
+        "erro",
+        `Ainda falta preencher a justificativa do critério: ${criterion.name}.`
       );
     }
 
@@ -717,6 +729,7 @@ export async function completeEvaluation(
       criterion_id: criterion.id,
       score_option_id: selectedOption.id,
       score,
+      observation,
     };
   });
 

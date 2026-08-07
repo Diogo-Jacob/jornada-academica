@@ -26,6 +26,7 @@ type Response = {
   criterion_id: string;
   score_option_id: string;
   score: number;
+  observation: string | null;
 };
 
 type EvaluationFormProps = {
@@ -167,8 +168,9 @@ export function EvaluationForm({
             </p>
 
             <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-              Selecione uma opção para cada critério. A pontuação será calculada
-              automaticamente de acordo com o peso máximo de cada item.
+               Selecione uma opção para cada critério e registre uma justificativa
+               breve para a nota atribuída. A pontuação será calculada automaticamente
+               de acordo com o peso máximo de cada item.
             </p>
           </div>
         )}
@@ -272,6 +274,34 @@ export function EvaluationForm({
                       </label>
                     );
                   })}
+                </div>
+
+                <div className="mt-5">
+                  <label
+                    htmlFor={`observation_${criterion.id}`}
+                    className="text-sm font-semibold text-[#102a3d]"
+                  >
+                    Justificativa da nota
+                  </label>
+
+                  <textarea
+                    id={`observation_${criterion.id}`}
+                    name={`observation_${criterion.id}`}
+                    defaultValue={currentResponse?.observation ?? ""}
+                    required
+                    disabled={!canEdit}
+                    placeholder="Justifique brevemente a nota atribuída a este critério."
+                    className={
+                      canEdit
+                        ? "mt-2 min-h-28 w-full rounded-2xl border border-[#d9e8ef] bg-white px-4 py-3 text-sm leading-6 text-[#102a3d] outline-none transition placeholder:text-[#8aa5b5] focus:border-[#245b7a] focus:ring-4 focus:ring-[#245b7a]/10"
+                        : "mt-2 min-h-28 w-full resize-none rounded-2xl border border-[#d9e8ef] bg-white/70 px-4 py-3 text-sm leading-6 text-[#4a6678] outline-none"
+                    }
+                  />
+
+                  <p className="mt-2 text-xs leading-5 text-[#5f7d90]">
+                    Este campo será utilizado pela Comissão Científica para compreender a
+                    justificativa da pontuação atribuída.
+                  </p>
                 </div>
               </div>
             );

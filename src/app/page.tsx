@@ -78,31 +78,48 @@ const scheduleItems = [
 
 const commissionMembers = [
   {
-    name: "Em Breve",
+    name: "Nicolly Cristina Castilho",
+    role: "Presidente",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Larissa Pelissaro Zanluca",
+    role: "Diretora do Time de Ligas",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Daiane Luiza Schwartz",
+    role: "Diretora de Eventos",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Sarah Kuchinski",
+    role: "Diretora do Núcleo de Ensino",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Ana Julia Silveira de Souza",
+    role: "1ª Tesoureira",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Julia Novais Duprat",
+    role: "Vice-presidente",
     image: "/campgo-logo.png",
   },
   {
-    name: "Em Breve",
+    name: "Maria Eduarda de Souza",
+    role: "Diretora de Pesquisa",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Camila Pereira de Jesus",
+    role: "Diretora de Marketing",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Kassielly Longo Brizola",
+    role: "1ª Secretária",
     image: "/campgo-logo.png",
   },
 ];
@@ -368,10 +385,14 @@ export default function HomePage() {
                         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#07162a]/90 to-transparent" />
                       </div>
 
-                      <div className="p-5 text-center">
+                     <div className="p-5 text-center">
                         <h4 className="text-lg font-bold text-white">
                           {member.name}
                         </h4>
+
+                        <p className="mt-2 text-sm font-medium leading-6 text-[#9ed8eb]">
+                          {member.role}
+                        </p>
                       </div>
                     </div>
                   </RevealOnScroll>

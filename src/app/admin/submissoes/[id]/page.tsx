@@ -69,6 +69,7 @@ type EvaluationResponse = {
   criterion_id: string;
   score_option_id: string;
   score: number;
+  observation: string | null;
   evaluation_criteria:
     | {
         id: string;
@@ -388,6 +389,7 @@ export default async function AdminSubmissionPage({
         criterion_id,
         score_option_id,
         score,
+        observation,
 
         evaluation_criteria (
           id,
@@ -1264,33 +1266,41 @@ function EvaluationAssignmentCard({
               return (
                 <div
                   key={response.id}
-                  className="grid grid-cols-12 px-4 py-4 text-sm"
+                  className="px-4 py-4 text-sm"
                 >
-                  <div className="col-span-12 md:col-span-5">
-                    <p className="font-medium text-[#102a3d]">
-                      {criterion?.name ??
-                        "Critério não localizado"}
-                    </p>
-                  </div>
+                  <div className="grid grid-cols-12">
+                    <div className="col-span-12 md:col-span-5">
+                      <p className="font-medium text-[#102a3d]">
+                        {criterion?.name ?? "Critério não localizado"}
+                      </p>
+                    </div>
 
-                  <div className="col-span-12 mt-2 text-[#5f7d90] md:col-span-4 md:mt-0">
-                    {option?.label ??
-                      "Opção não localizada"}
-                  </div>
+                    <div className="col-span-12 mt-2 text-[#5f7d90] md:col-span-4 md:mt-0">
+                      {option?.label ?? "Opção não localizada"}
+                    </div>
 
-                  <div className="col-span-12 mt-2 md:col-span-3 md:mt-0 md:text-right">
-                    <span className="font-medium text-[#102a3d]">
-                      {formatScore(
-                        Number(response.score)
-                      )}
-                    </span>
-
-                    {maxScore > 0 && (
-                      <span className="text-[#5f7d90]">
-                        {" "}
-                        / {formatScore(maxScore)}
+                    <div className="col-span-12 mt-2 md:col-span-3 md:mt-0 md:text-right">
+                      <span className="font-medium text-[#102a3d]">
+                        {formatScore(Number(response.score))}
                       </span>
-                    )}
+
+                      {maxScore > 0 && (
+                        <span className="text-[#5f7d90]">
+                          {" "}
+                          / {formatScore(maxScore)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#245b7a]">
+                      Justificativa do avaliador
+                    </p>
+
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4a6678]">
+                      {response.observation?.trim() || "Nenhuma justificativa registrada."}
+                    </p>
                   </div>
                 </div>
               );

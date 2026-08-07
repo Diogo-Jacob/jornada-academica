@@ -257,6 +257,7 @@ export default async function AvaliadorTrabalhoPage({
     criterion_id: string;
     score_option_id: string;
     score: number;
+    observation: string | null;
   }[] = [];
 
   if (canShowEvaluationForm) {
@@ -329,7 +330,8 @@ export default async function AvaliadorTrabalhoPage({
       .select(`
         criterion_id,
         score_option_id,
-        score
+        score,
+        observation
       `)
       .eq("assignment_id", assignment.id);
 
