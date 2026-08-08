@@ -180,6 +180,11 @@ const sponsors = [
     role: "Organização",
     image: "/campgo-logo.png",
   },
+  {
+    name: "Helper Hub",
+    role: "Apoiadora",
+    image: "/logo-helperhub.png",
+  },
 ];
 
 export default function HomePage() {
