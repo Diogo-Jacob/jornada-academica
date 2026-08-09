@@ -700,14 +700,6 @@ export async function completeEvaluation(
       );
     }
 
-    if (!observation) {
-      redirectWithMessage(
-        assignmentId,
-        "erro",
-        `Ainda falta preencher a justificativa do critério: ${criterion.name}.`
-      );
-    }
-
     const selectedOption =
       scoreOptionMap.get(selectedOptionId);
 
@@ -719,17 +711,25 @@ export async function completeEvaluation(
       );
     }
 
+    const selectedPercentage = Number(selectedOption.percentage);
+
+    if (selectedPercentage === 0 && !observation) {
+      redirectWithMessage(
+        assignmentId,
+        "erro",
+        `Como foi atribuída nota 0 ao critério "${criterion.name}", é obrigatório preencher uma justificativa objetiva.`
+      );
+    }
+
     const score =
-      (Number(criterion.max_score) *
-        Number(selectedOption.percentage)) /
-      100;
+      (Number(criterion.max_score) * selectedPercentage) / 100;
 
     return {
       assignment_id: assignmentId,
       criterion_id: criterion.id,
       score_option_id: selectedOption.id,
       score,
-      observation,
+      observation: observation || null,
     };
   });
 

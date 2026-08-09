@@ -51,6 +51,40 @@ function calculateScore(
   return (Number(maxScore) * Number(percentage)) / 100;
 }
 
+function RichCriterionText({
+  text,
+}: {
+  text: string;
+}) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (
+          part.startsWith("**") &&
+          part.endsWith("**")
+        ) {
+          return (
+            <strong
+              key={index}
+              className="font-bold text-[#102a3d]"
+            >
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
+
+        return (
+          <span key={index}>
+            {part}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export function EvaluationForm({
   assignmentId,
   assignmentStatus,
@@ -168,9 +202,9 @@ export function EvaluationForm({
             </p>
 
             <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-               Selecione uma opção para cada critério e registre uma justificativa
-               breve para a nota atribuída. A pontuação será calculada automaticamente
-               de acordo com o peso máximo de cada item.
+              Selecione uma opção para cada critério. A justificativa será obrigatória
+              apenas quando a nota atribuída ao critério for 0 (zero). Para as demais
+              notas, o preenchimento da justificativa é opcional.
             </p>
           </div>
         )}
@@ -205,8 +239,8 @@ export function EvaluationForm({
                     </h3>
 
                     {criterion.description && (
-                      <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-                        {criterion.description}
+                      <p className="mt-3 whitespace-pre-wrap text-base leading-8 text-[#4a6678]">
+                        <RichCriterionText text={criterion.description} />
                       </p>
                     )}
                   </div>
@@ -284,11 +318,21 @@ export function EvaluationForm({
                     Justificativa da nota
                   </label>
 
+                  <div className="mt-3 rounded-2xl border border-[#d9e8ef] bg-white p-4 text-sm leading-6 text-[#4a6678]">
+                    As observações registradas neste campo serão encaminhadas aos autores como
+                    devolutiva da avaliação. Em caso de atribuição de nota 0 (zero) no critério,
+                    é{" "}
+                    <strong className="font-bold text-[#102a3d]">
+                      obrigatória
+                    </strong>{" "}
+                    a apresentação de justificativa objetiva. Demais observações poderão ser
+                    registradas de forma facultativa, a critério do avaliador.
+                  </div>
+
                   <textarea
                     id={`observation_${criterion.id}`}
                     name={`observation_${criterion.id}`}
                     defaultValue={currentResponse?.observation ?? ""}
-                    required
                     disabled={!canEdit}
                     placeholder="Justifique brevemente a nota atribuída a este critério."
                     className={
@@ -297,11 +341,6 @@ export function EvaluationForm({
                         : "mt-2 min-h-28 w-full resize-none rounded-2xl border border-[#d9e8ef] bg-white/70 px-4 py-3 text-sm leading-6 text-[#4a6678] outline-none"
                     }
                   />
-
-                  <p className="mt-2 text-xs leading-5 text-[#5f7d90]">
-                    Este campo será utilizado pela Comissão Científica para compreender a
-                    justificativa da pontuação atribuída.
-                  </p>
                 </div>
               </div>
             );
