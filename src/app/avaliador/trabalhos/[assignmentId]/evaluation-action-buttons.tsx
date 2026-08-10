@@ -20,7 +20,7 @@ export function StartEvaluationButton() {
         </>
       ) : (
         <>
-          <PlayCircle />
+          <PlayCircle className="size-4" />
           Iniciar avaliação
         </>
       )}

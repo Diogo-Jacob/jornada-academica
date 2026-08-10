@@ -1,3 +1,5 @@
+"use client";
+
 import { ClipboardCheck } from "lucide-react";
 import { completeEvaluation } from "./actions";
 import {
@@ -157,6 +159,55 @@ export function EvaluationForm({
     );
   }
 
+  function handleSubmit(event: {
+    preventDefault: () => void;
+    currentTarget: HTMLFormElement;
+  }) {
+    if (!canEdit) {
+      return;
+    }
+
+    const form = event.currentTarget;
+
+    for (const criterion of criteria) {
+      const selectedOption = form.querySelector<HTMLInputElement>(
+        `input[name="criterion_${criterion.id}"]:checked`
+      );
+
+      if (!selectedOption) {
+        event.preventDefault();
+
+        alert(
+          `Ainda falta responder o critério: ${criterion.name}.`
+        );
+
+        return;
+      }
+
+      const option = scoreOptions.find(
+        (scoreOption) => scoreOption.id === selectedOption.value
+      );
+
+      const observation = form.querySelector<HTMLTextAreaElement>(
+        `textarea[name="observation_${criterion.id}"]`
+      );
+
+      const observationValue = observation?.value.trim() ?? "";
+
+      if (Number(option?.percentage ?? 0) === 0 && !observationValue) {
+        event.preventDefault();
+
+        alert(
+          `Como foi atribuída nota 0 ao critério "${criterion.name}", é obrigatório preencher uma justificativa objetiva.`
+        );
+
+        observation?.focus();
+
+        return;
+      }
+    }
+  }
+
   return (
     <Card className="overflow-hidden rounded-[2rem] border-[#d9e8ef] bg-white shadow-sm">
       <CardHeader className="border-b border-[#d9e8ef] bg-[#f7fbfd]">
@@ -211,6 +262,7 @@ export function EvaluationForm({
 
         <form
           action={completeEvaluation}
+          onSubmit={handleSubmit}
           className="space-y-5"
         >
           <input
