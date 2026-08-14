@@ -40,7 +40,9 @@ export default async function AdminPage() {
   const { data: submissionsData, error: submissionsError } =
     await supabase
       .from("submissions")
-      .select("status");
+      .select("status")
+      .neq("status", "draft");
+      
 
   if (submissionsError) {
     console.error("Erro ao carregar resumo de submissões:", {
