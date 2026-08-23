@@ -1,7 +1,6 @@
 "use server";
 
 import { submissionResubmittedEmail } from "@/services/email/templates/submission-resubmitted";
-import { authorshipCompositionSavedEmail } from "@/services/email/templates/authorship-composition-saved";
 import { sendEmail } from "@/services/email/send-email";
 import { submissionConfirmationEmail } from "@/services/email/templates/submission-confirmation";
 import { revalidatePath } from "next/cache";
@@ -830,32 +829,10 @@ export async function saveAuthorComposition(
     );
   }
 
-  const savedAt = formatDateTimeBR();
-
-  await Promise.all(
-    authorsToInsert.map((author) =>
-      sendEmailSafely({
-        email: {
-          to: author.email,
-          subject: `Confirmação de autoria - ${submissionDetails.title}`,
-          html: authorshipCompositionSavedEmail({
-            authorName: author.full_name,
-            responsibleAuthorName:
-              responsibleAuthor.full_name ??
-              "Autor responsável",
-            title: submissionDetails.title,
-            role: author.author_role,
-            savedAt,
-          }),
-        },
-        context: {
-          type: "authorship_composition_saved",
-          authorEmail: author.email,
-          submissionId,
-        },
-      })
-    )
-  );
+  // Envio de confirmação individual de autoria desativado.
+  // Motivo: evitar excesso de e-mails para coautores/orientadores e preservar
+  // o limite diário do serviço de envio.
+  // O comprovante oficial da submissão será enviado apenas ao autor responsável.
 
   await markCorrectionUpdatedIfNeeded({
     supabase,
