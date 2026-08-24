@@ -1630,47 +1630,33 @@ export async function submitSubmission(
       },
     });
   } else {
-    const authorsSortedByOrder = [
-      ...(authors as AuthorForEmail[]),
-    ].sort(
-      (firstAuthor, secondAuthor) =>
-        firstAuthor.display_order -
-        secondAuthor.display_order
-    );
-
-    await Promise.all(
-      authorsSortedByOrder.map((author) => {
-        if (!author.email) {
-          return Promise.resolve();
-        }
-
-        return sendEmailSafely({
-          email: {
-            to: author.email,
-            subject: `Comprovante de submissão - ${
+    if (responsibleAuthorEmail) {
+      await sendEmailSafely({
+        email: {
+          to: responsibleAuthorEmail,
+          subject: `Comprovante de submissão - ${
+            submittedRow.protocol ??
+            protocol ??
+            "Protocolo não informado"
+          }`,
+          html: submissionConfirmationEmail({
+            studentName:
+              responsibleAuthorName ?? "Autor(a)",
+            title: submittedRow.title,
+            protocol:
               submittedRow.protocol ??
               protocol ??
-              "Protocolo não informado"
-            }`,
-            html: submissionConfirmationEmail({
-              studentName:
-                author.full_name ?? "Autor(a)",
-              title: submittedRow.title,
-              protocol:
-                submittedRow.protocol ??
-                protocol ??
-                "Protocolo não informado",
-              submittedAt,
-            }),
-          },
-          context: {
-            type: "submission_confirmation",
-            submissionId,
-            authorEmail: author.email,
-          },
-        });
-      })
-    );
+              "Protocolo não informado",
+            submittedAt,
+          }),
+        },
+        context: {
+          type: "submission_confirmation",
+          submissionId,
+          authorEmail: responsibleAuthorEmail,
+        },
+      });
+    }
   }
 
   revalidatePath("/aluno");
