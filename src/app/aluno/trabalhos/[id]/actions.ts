@@ -41,13 +41,6 @@ type FileReplacementRecord = {
   previousFileId: string | null;
 };
 
-type AuthorForEmail = {
-  full_name: string | null;
-  email: string | null;
-  author_role: string;
-  display_order: number;
-};
-
 function redirectWithMessage(
   submissionId: string,
   type: "erro" | "sucesso",

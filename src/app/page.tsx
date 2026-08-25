@@ -83,13 +83,23 @@ const commissionMembers = [
     image: "/campgo-logo.png",
   },
   {
-    name: "Larissa Pelissaro Zanluca",
-    role: "Diretora do Time de Ligas",
+    name: "Julia Novais Duprat",
+    role: "Vice-presidente",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Maria Eduarda de Souza",
+    role: "Diretora de Pesquisa",
     image: "/campgo-logo.png",
   },
   {
     name: "Daiane Luiza Schwartz",
     role: "Diretora de Eventos",
+    image: "/campgo-logo.png",
+  },
+  {
+    name: "Gabriela Vita",
+    role: "Diretora do Time de Ligas",
     image: "/campgo-logo.png",
   },
   {
@@ -100,16 +110,6 @@ const commissionMembers = [
   {
     name: "Ana Julia Silveira de Souza",
     role: "1ª Tesoureira",
-    image: "/campgo-logo.png",
-  },
-  {
-    name: "Julia Novais Duprat",
-    role: "Vice-presidente",
-    image: "/campgo-logo.png",
-  },
-  {
-    name: "Maria Eduarda de Souza",
-    role: "Diretora de Pesquisa",
     image: "/campgo-logo.png",
   },
   {
