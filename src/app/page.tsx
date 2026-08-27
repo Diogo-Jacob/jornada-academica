@@ -80,47 +80,47 @@ const commissionMembers = [
   {
     name: "Nicolly Cristina Castilho",
     role: "Presidente",
-    image: "/campgo-logo.png",
+    image: "/comissao/Nicolly Cristina Castilho.JPG",
   },
   {
     name: "Julia Novais Duprat",
     role: "Vice-presidente",
-    image: "/campgo-logo.png",
+    image: "/comissao/Júlia Novais Duprat.JPG",
   },
   {
     name: "Maria Eduarda de Souza",
     role: "Diretora de Pesquisa",
-    image: "/campgo-logo.png",
+    image: "/comissao/Maria Eduarda de Souza.JPG",
   },
   {
     name: "Daiane Luiza Schwartz",
     role: "Diretora de Eventos",
-    image: "/campgo-logo.png",
+    image: "/comissao/Daiane Luiza Schwarz.jpg",
   },
   {
     name: "Gabriela Vita",
     role: "Diretora do Time de Ligas",
-    image: "/campgo-logo.png",
+    image: "/comissao/Gabriella Vita Teixeira de Oliveira.JPG",
   },
   {
     name: "Sarah Kuchinski",
     role: "Diretora do Núcleo de Ensino",
-    image: "/campgo-logo.png",
+    image: "/comissao/Sarah Kuchinski.JPG",
   },
   {
     name: "Ana Julia Silveira de Souza",
     role: "1ª Tesoureira",
-    image: "/campgo-logo.png",
+    image: "/comissao/Ana Júlia Silveira de Souza.JPG",
   },
   {
     name: "Camila Pereira de Jesus",
     role: "Diretora de Marketing",
-    image: "/campgo-logo.png",
+    image: "/comissao/Camila Pereira de Jesus.JPG",
   },
   {
     name: "Kassielly Longo Brizola",
     role: "1ª Secretária",
-    image: "/campgo-logo.png",
+    image: "/comissao/Kassielly.JPG",
   },
 ];
 
@@ -184,6 +184,11 @@ const sponsors = [
     name: "Helper Hub",
     role: "Apoiadora",
     image: "/logo-helperhub.png",
+  },
+  {
+  name: "Red Bull",
+  role: "Apoiadora",
+  image: "/logo-redbull.png",
   },
 ];
 
