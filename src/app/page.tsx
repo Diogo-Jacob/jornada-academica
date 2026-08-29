@@ -307,7 +307,6 @@ export default function HomePage() {
         </section>
       </RevealOnScroll>
 
-      <RevealOnScroll>
         <section
           id="comissao"
           className="border-y border-[#d9e8ef] bg-[#102a3d]"
@@ -411,7 +410,6 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-      </RevealOnScroll>
 
       <RevealOnScroll>
         <section
