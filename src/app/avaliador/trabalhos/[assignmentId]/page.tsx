@@ -457,7 +457,7 @@ export default async function AvaliadorTrabalhoPage({
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <HeroInfo
-                label="Categoria"
+                label="Categoria selecionada pelo autor no ato da submissão"
                 value={category?.name ?? "Não informada"}
               />
 

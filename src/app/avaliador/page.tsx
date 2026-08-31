@@ -391,8 +391,10 @@ export default async function AvaliadorPage() {
                             </h2>
 
                             <p className="mt-2 text-sm text-[#5f7d90]">
-                              {category?.name ??
-                                "Categoria não informada"}
+                              Categoria selecionada pelo autor no ato da submissão:{" "}
+                              <span className="font-medium text-[#102a3d]">
+                                {category?.name ?? "Não informada"}
+                              </span>
                             </p>
                           </div>
 
