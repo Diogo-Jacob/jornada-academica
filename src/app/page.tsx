@@ -135,12 +135,12 @@ const dateScheduleItems = [
   },
   {
     event: "Encerramento do período de submissão de trabalhos",
-    date: "22/08",
+    date: "29/08",
   },
   {
     event:
       "Encerramento do envio de correções de documentos obrigatórios",
-    date: "24/08",
+    date: "01/08",
   },
   {
     event:
