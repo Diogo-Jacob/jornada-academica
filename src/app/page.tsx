@@ -190,6 +190,21 @@ const sponsors = [
   role: "Apoiadora",
   image: "/logo-redbull.png",
   },
+  {
+  name: "Montserrat",
+  role: "Apoiadora",
+  image: "/logo-montserrat.png",
+  },
+  {
+  name: "Pasteloco",
+  role: "Apoiadora",
+  image: "/logo-pasteloco.jpg",
+  },
+  {
+  name: "Comunidade 1%",
+  role: "Apoiadora",
+  image: "/logo-c1.png",
+  },
 ];
 
 export default function HomePage() {
