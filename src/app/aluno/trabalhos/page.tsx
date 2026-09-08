@@ -39,10 +39,10 @@ type Submission = {
     | null;
   events:
     | {
-        submission_ends_at: string | null;
+        results_publish_at: string | null;
       }
     | {
-        submission_ends_at: string | null;
+        results_publish_at: string | null;
       }[]
     | null;
 };
@@ -70,11 +70,11 @@ function getCategoryName(submission: Submission) {
 function canShowFinalResult(submission: Submission) {
   const event = getEvent(submission);
 
-  if (!event?.submission_ends_at) {
+  if (!event?.results_publish_at) {
     return false;
   }
 
-  return new Date() >= new Date(event.submission_ends_at);
+  return new Date() >= new Date(event.results_publish_at);
 }
 
 function formatStudentStatus(
@@ -191,7 +191,7 @@ export default async function TrabalhosPage({
       ),
 
       events (
-        submission_ends_at
+        results_publish_at
       )
     `)
     .eq("owner_user_id", profile.id)
@@ -383,7 +383,8 @@ export default async function TrabalhosPage({
                             )}
 
                             <span className="rounded-full bg-white px-3 py-1 text-xs text-[#5f7d90]">
-                              Atualizado em {formatDateTimeBR(submission.updated_at)}
+                              Atualizado em{" "}
+                              {formatDateTimeBR(submission.updated_at)}
                             </span>
                           </div>
 

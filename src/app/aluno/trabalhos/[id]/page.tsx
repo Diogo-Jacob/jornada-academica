@@ -261,8 +261,7 @@ export default async function TrabalhoPage({
     : eventValue;
 
   const finalResultReleaseDate =
-    event?.results_publish_at ??
-    event?.submission_ends_at;
+    event?.results_publish_at;
 
   const canShowFinalResult =
     Boolean(finalResultReleaseDate) &&
