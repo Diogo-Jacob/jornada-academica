@@ -138,9 +138,7 @@ async function ensureResultsNoticeCanBeSent(
 
   const resultsReleaseDate = currentEvent.results_publish_at
     ? new Date(currentEvent.results_publish_at)
-    : currentEvent.submission_ends_at
-      ? new Date(currentEvent.submission_ends_at)
-      : null;
+    : null;
 
   if (!resultsReleaseDate) {
     redirectWithMessage(
