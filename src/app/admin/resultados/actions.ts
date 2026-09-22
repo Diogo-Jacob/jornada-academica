@@ -105,7 +105,6 @@ async function ensureResultsNoticeCanBeSent(
         id,
         name,
         status,
-        submission_ends_at,
         results_publish_at
       `)
       .eq("status", "published")
@@ -116,12 +115,15 @@ async function ensureResultsNoticeCanBeSent(
       .maybeSingle();
 
   if (currentEventError) {
-    console.error("Erro ao validar data de publicação dos resultados:", {
-      message: currentEventError.message,
-      details: currentEventError.details,
-      hint: currentEventError.hint,
-      code: currentEventError.code,
-    });
+    console.error(
+      "Erro ao validar data de publicação dos resultados:",
+      {
+        message: currentEventError.message,
+        details: currentEventError.details,
+        hint: currentEventError.hint,
+        code: currentEventError.code,
+      }
+    );
 
     redirectWithMessage(
       "erro",
@@ -136,26 +138,31 @@ async function ensureResultsNoticeCanBeSent(
     );
   }
 
-  const resultsReleaseDate = currentEvent.results_publish_at
-    ? new Date(currentEvent.results_publish_at)
-    : null;
-
-  if (!resultsReleaseDate) {
+  if (!currentEvent.results_publish_at) {
     redirectWithMessage(
       "erro",
       "Configure a data de publicação dos resultados antes de enviar o aviso."
     );
   }
 
-  const hasResultsReleaseDatePassed =
-    new Date() >= resultsReleaseDate;
+  const resultsReleaseDate =
+    new Date(currentEvent.results_publish_at);
 
-  if (!hasResultsReleaseDatePassed) {
+  if (Number.isNaN(resultsReleaseDate.getTime())) {
+    redirectWithMessage(
+      "erro",
+      "A data de publicação dos resultados está inválida."
+    );
+  }
+
+  if (new Date() < resultsReleaseDate) {
     redirectWithMessage(
       "erro",
       "O aviso de resultados só pode ser enviado após a data de publicação dos resultados."
     );
   }
+
+  return currentEvent;
 }
 export async function setFinalResult(formData: FormData) {
   const submissionId = String(
@@ -284,7 +291,8 @@ export async function setFinalResult(formData: FormData) {
 export async function sendResultsAvailableEmails() {
   const { supabase } = await ensureAdmin();
 
-  await ensureResultsNoticeCanBeSent(supabase);
+  const currentEvent =
+    await ensureResultsNoticeCanBeSent(supabase);
 
   const { data: submissions, error: submissionsError } =
     await supabase
@@ -304,6 +312,8 @@ export async function sendResultsAvailableEmails() {
           display_order
         )
       `)
+      .eq("event_id", currentEvent.id)
+      .is("results_notified_at", null)
       .in("status", [
         "selected_oral",
         "selected_banner",
@@ -330,7 +340,7 @@ export async function sendResultsAvailableEmails() {
   if (!submissions?.length) {
     redirectWithMessage(
       "erro",
-      "Nenhum trabalho selecionado para apresentação oral ou banner foi encontrado."
+      "Não há resultados pendentes de notificação. Os trabalhos com resultado definido já foram notificados ou ainda não possuem resultado final."
     );
   }
 
@@ -410,6 +420,34 @@ export async function sendResultsAvailableEmails() {
         EMAIL_TIMEOUT_MS
       );
       if (emailResult.success) {
+        const { error: notifiedAtError } =
+          await supabase
+            .from("submissions")
+            .update({
+              results_notified_at:
+                new Date().toISOString(),
+            })
+            .eq("id", submission.id)
+            .is("results_notified_at", null);
+
+        if (notifiedAtError) {
+          failedCount += 1;
+
+          console.error(
+            "E-mail enviado, mas não foi possível registrar o envio do resultado:",
+            {
+              submissionId: submission.id,
+              authorEmail: responsibleAuthor.email,
+              message: notifiedAtError.message,
+              details: notifiedAtError.details,
+              hint: notifiedAtError.hint,
+              code: notifiedAtError.code,
+            }
+          );
+
+          continue;
+        }
+
         sentCount += 1;
       } else {
         failedCount += 1;

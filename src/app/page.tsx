@@ -25,54 +25,189 @@ const eventMapEmbedUrl =
 
 const speakers = [
   {
-    name: "Palestrante em breve",
-    theme: "Tema a confirmar",
+    name: "Dra. Miriam",
+    theme:
+      "Médica intensivista. Residência em Clínica Médica no HE/UFPel e residência em Medicina Intensiva no HCPA/UFRGS. Especialista em Medicina Intensiva pela AMIB e doutora em Ciências pela USP. Coordenadora do Programa de Residência Médica em Medicina Intensiva do Centro Hospitalar Unimed, em Joinville, e professora do curso de Medicina da Univille.",
+    image: "/palestrantes/miriam.jpeg",
   },
   {
-    name: "Palestrante em breve",
-    theme: "Tema a confirmar",
-  },
-  {
-    name: "Palestrante em breve",
-    theme: "Tema a confirmar",
+    name: "Dra. Tanise Belvede Damas",
+    theme:
+      "Graduada em Medicina pela Universidade Federal de Santa Catarina (UFSC), com residência em Endocrinologia e Metabologia pelo Hospital Universitário da UFSC. Possui pós-graduação em Transtornos Alimentares pelo AMBULIM-USP.",
+    image: "/palestrantes/tanise.jpeg",
   },
 ];
-
-const scheduleItems = [
+const scheduleByDay = [
   {
-    time: "Em breve",
-    title: "Credenciamento e abertura oficial",
-    description:
-      "Recepção dos participantes e abertura da Jornada pela Comissão Organizadora.",
-    type: "Cerimônia",
+    date: "05/10",
+    day: "Segunda-feira",
+    items: [
+      {
+        time: "13:30",
+        duration: "15 min",
+        title: "Abertura",
+        description: "Abertura oficial da IX Jornada Acadêmica de Medicina.",
+        type: "Abertura",
+      },
+      {
+        time: "13:45",
+        duration: "35 min",
+        title:
+          "Preparação para os plantões: competências essenciais do generalista",
+        description:
+          "Palestra voltada à preparação prática do acadêmico para os primeiros plantões.",
+        type: "Palestra",
+      },
+      {
+        time: "14:20",
+        duration: "10 min",
+        title: "Medway",
+        description: "Momento destinado ao patrocinador.",
+        type: "Patrocínio",
+      },
+      {
+        time: "14:30",
+        duration: "35 min",
+        title: "APH",
+        description: "Palestra sobre Atendimento Pré-Hospitalar.",
+        type: "Palestra",
+      },
+      {
+        time: "15:05",
+        duration: "30 min",
+        title: "Competição de RCP",
+        description:
+          "Atividade prática e competitiva de Ressuscitação Cardiopulmonar.",
+        type: "Competição",
+      },
+      {
+        time: "15:35",
+        duration: "10 min",
+        title: "Premiação da competição de RCP",
+        description: "Premiação dos participantes da competição.",
+        type: "Premiação",
+      },
+      {
+        time: "15:45",
+        duration: "25 min",
+        title: "Coffee Break",
+        description: "Intervalo.",
+        type: "Intervalo",
+      },
+      {
+        time: "16:10",
+        duration: "1 hora",
+        title: "Roda de conversa",
+        description:
+          "Conversa sobre especialidades, trajetória acadêmica e preparação para a residência médica.",
+        type: "Roda de conversa",
+      },
+      {
+        time: "17:10",
+        duration: "30 min",
+        title: "Apresentação de banners",
+        description:
+          "Apresentações dos trabalhos científicos e avaliação dos banners.",
+        type: "Apresentação",
+      },
+      {
+        time: "17:45",
+        duration: "35 min",
+        title:
+          "Currículo na medicina: o que vale e o que não vale, como fazer a preparação do currículo",
+        description: "Palestra.",
+        type: "Palestra",
+      },
+      {
+        time: "18:20",
+        duration: "",
+        title: "Encerramento do primeiro dia",
+        description: "Fim das atividades do dia 05/10.",
+        type: "Encerramento",
+      },
+    ],
   },
   {
-    time: "Em breve",
-    title: "Palestra de abertura",
-    description:
-      "Atividade inicial com tema e palestrante a serem divulgados em breve.",
-    type: "Palestra",
-  },
-  {
-    time: "Em breve",
-    title: "Atividades acadêmicas",
-    description:
-      "Momentos formativos voltados à integração, atualização e vivência médica.",
-    type: "Atividade",
-  },
-  {
-    time: "Em breve",
-    title: "Apresentações científicas",
-    description:
-      "Espaço destinado à apresentação dos trabalhos aprovados pela Comissão Científica.",
-    type: "Apresentação",
-  },
-  {
-    time: "Em breve",
-    title: "Encerramento",
-    description:
-      "Finalização das atividades e orientações finais da Jornada.",
-    type: "Cerimônia",
+    date: "06/10",
+    day: "Terça-feira",
+    items: [
+      {
+        time: "13:30",
+        duration: "35 min",
+        title: "Palestra em breve",
+        description:
+          "Tema da primeira palestra do segundo dia será divulgado em breve.",
+        type: "Palestra",
+      },
+      {
+        time: "14:05",
+        duration: "10 min",
+        title: "Comunidade 1%",
+        description: "Momento destinado ao patrocinador.",
+        type: "Patrocínio",
+      },
+      {
+        time: "14:15",
+        duration: "45 min",
+        title:
+          "Emagrecimento a qualquer custo? O risco do uso de canetas emagrecedoras em pacientes não elegíveis",
+        description: "Palestra.",
+        type: "Palestra",
+      },
+      {
+        time: "15:00",
+        duration: "10 min",
+        title: "Momento do patrocinador",
+        description: "Atividade destinada ao patrocinador.",
+        type: "Patrocínio",
+      },
+      {
+        time: "15:10",
+        duration: "30 min",
+        title: "Apresentação de banners",
+        description:
+          "Apresentações e avaliação dos trabalhos científicos. Simultaneamente, ocorrerá a competição de sutura.",
+        type: "Apresentação",
+      },
+      {
+        time: "15:10",
+        duration: "30 min",
+        title: "Competição de sutura",
+        description:
+          "Competição prática realizada paralelamente às apresentações de banners.",
+        type: "Competição",
+      },
+      {
+        time: "15:40",
+        duration: "30 min",
+        title: "Coffee Break",
+        description: "Intervalo.",
+        type: "Intervalo",
+      },
+      {
+        time: "16:10",
+        duration: "1 hora",
+        title: "Apresentações orais",
+        description:
+          "Apresentação dos 5 trabalhos com melhor classificação científica.",
+        type: "Apresentação",
+      },
+      {
+        time: "17:30",
+        duration: "40 min",
+        title: "Premiações",
+        description:
+          "Melhor trabalho oral, melhor apresentação em banner e premiações das competições de sutura e RCP.",
+        type: "Premiação",
+      },
+      {
+        time: "18:10",
+        duration: "",
+        title: "Encerramento da Jornada",
+        description: "Fim das atividades da IX Jornada Acadêmica de Medicina.",
+        type: "Encerramento",
+      },
+    ],
   },
 ];
 
@@ -135,12 +270,12 @@ const dateScheduleItems = [
   },
   {
     event: "Encerramento do período de submissão de trabalhos",
-    date: "29/08",
+    date: "31/08",
   },
   {
     event:
       "Encerramento do envio de correções de documentos obrigatórios",
-    date: "01/08",
+    date: "02/09",
   },
   {
     event:
@@ -535,15 +670,35 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="divide-y divide-white/10">
-                  {scheduleItems.map((item) => (
-                    <ScheduleRow
-                      key={item.title}
-                      time={item.time}
-                      title={item.title}
-                      description={item.description}
-                      type={item.type}
-                    />
+                <div className="space-y-8 p-6">
+                  {scheduleByDay.map((day) => (
+                    <div
+                      key={day.date}
+                      className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03]"
+                    >
+                      <div className="border-b border-white/10 bg-[#6fb6cf]/10 px-6 py-5">
+                        <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#9ed8eb]">
+                          Dia {day.date}
+                        </p>
+
+                        <h3 className="mt-1 text-2xl font-bold text-white">
+                          {day.day}
+                        </h3>
+                      </div>
+
+                      <div className="divide-y divide-white/10">
+                        {day.items.map((item, index) => (
+                          <ScheduleRow
+                            key={`${day.date}-${item.time}-${item.title}-${index}`}
+                            time={item.time}
+                            duration={item.duration}
+                            title={item.title}
+                            description={item.description}
+                            type={item.type}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -665,38 +820,47 @@ export default function HomePage() {
               </p>
 
               <h2 className="font-display mt-3 text-4xl font-bold leading-tight tracking-tight text-[#102a3d] sm:text-5xl">
-                Convidados serão divulgados em breve.
+                Conheça nossos palestrantes
               </h2>
 
               <p className="mt-5 text-xl leading-9 text-[#4a6678]">
-                A programação contará com palestrantes convidados e temas
-                relevantes para a formação médica. As informações oficiais serão
-                atualizadas nesta seção.
+                Profissionais convidados que compartilharão experiências,
+                conhecimento e diferentes perspectivas durante a IX Jornada
+                Acadêmica de Medicina.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-5 md:grid-cols-3">
+            <div className="mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-2">
               {speakers.map((speaker, index) => (
                 <RevealOnScroll
                   key={`${speaker.name}-${index}`}
                   delay={index * 100}
                 >
-                  <div className="group rounded-[2rem] border border-[#d9e8ef] bg-white p-7 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
-                    <div className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-[#eef7fa] text-[#245b7a] transition group-hover:bg-[#245b7a] group-hover:text-white">
-                      <Mic2 className="size-7" />
+                  <div className="group h-full overflow-hidden rounded-[2rem] border border-[#d9e8ef] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-[#eef7fa]">
+                      <img
+                        src={speaker.image}
+                        alt={`Foto de ${speaker.name}`}
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+
+                      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#102a3d]/70 to-transparent" />
                     </div>
 
-                    <h3 className="font-display mt-6 text-2xl font-semibold text-[#102a3d]">
-                      {speaker.name}
-                    </h3>
+                    <div className="p-7">
+                      <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-[#245b7a]">
+                        <Mic2 className="size-4" />
+                        Palestrante
+                      </div>
 
-                    <p className="mt-2 text-base text-[#5f7d90]">
-                      {speaker.theme}
-                    </p>
+                      <h3 className="font-display mt-4 text-2xl font-bold text-[#102a3d]">
+                        {speaker.name}
+                      </h3>
 
-                    <p className="mt-5 rounded-full border border-[#d9e8ef] bg-[#f7fbfd] px-4 py-2 text-sm font-semibold text-[#245b7a]">
-                      Divulgação em breve
-                    </p>
+                      <p className="mt-3 font-semibold leading-7 text-[#245b7a]">
+                        {speaker.theme}
+                      </p>
+                    </div>
                   </div>
                 </RevealOnScroll>
               ))}
@@ -918,6 +1082,7 @@ export default function HomePage() {
 
 type ScheduleRowProps = {
   time: string;
+  duration?: string;
   title: string;
   description: string;
   type: string;
@@ -925,14 +1090,19 @@ type ScheduleRowProps = {
 
 function ScheduleRow({
   time,
+  duration,
   title,
   description,
   type,
 }: ScheduleRowProps) {
   return (
-    <div className="grid gap-4 p-5 transition hover:bg-white/[0.03] sm:grid-cols-[120px_1fr_auto] sm:items-center sm:p-6">
-      <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-[#6fb6cf]">
+    <div className="grid gap-4 p-5 transition hover:bg-white/[0.03] sm:grid-cols-[105px_85px_1fr_auto] sm:items-center sm:p-6">
+      <p className="font-mono text-sm font-bold uppercase tracking-[0.12em] text-[#6fb6cf]">
         {time}
+      </p>
+
+      <p className="text-sm text-[#8fb7cc]">
+        {duration || "—"}
       </p>
 
       <div>
