@@ -25,17 +25,29 @@ const eventMapEmbedUrl =
 
 const speakers = [
   {
-    name: "Dra. Miriam",
+    name: "Dra. Miriam Machado",
     theme:
-      "Médica intensivista. Residência em Clínica Médica no HE/UFPel e residência em Medicina Intensiva no HCPA/UFRGS. Especialista em Medicina Intensiva pela AMIB e doutora em Ciências pela USP. Coordenadora do Programa de Residência Médica em Medicina Intensiva do Centro Hospitalar Unimed, em Joinville, e professora do curso de Medicina da Univille.",
+      "Médica intensivista, com residência em Clínica Médica pelo Hospital Escola da Universidade Federal de Pelotas (UFPel) e em Medicina Intensiva pelo Hospital de Clínicas de Porto Alegre (HCPA/UFRGS). Especialista em Medicina Intensiva pela Associação de Medicina Intensiva Brasileira (AMIB) e doutora em Ciências pela Universidade de São Paulo (USP). Atualmente, é coordenadora do Programa de Residência Médica em Medicina Intensiva do Centro Hospitalar Unimed, em Joinville, e professora do curso de Medicina da Univille.",
     image: "/palestrantes/miriam.jpeg",
   },
   {
     name: "Dra. Tanise Belvede Damas",
     theme:
-      "Graduada em Medicina pela Universidade Federal de Santa Catarina (UFSC), com residência em Endocrinologia e Metabologia pelo Hospital Universitário da UFSC. Possui pós-graduação em Transtornos Alimentares pelo AMBULIM-USP.",
+      "Médica graduada pela Universidade Federal de Santa Catarina (UFSC), com residência médica em Endocrinologia e Metabologia pelo Hospital Universitário da UFSC. Possui pós-graduação em Transtornos Alimentares pelo Programa de Transtornos Alimentares do Instituto de Psiquiatria do Hospital das Clínicas da Universidade de São Paulo (AMBULIM–USP).",
     image: "/palestrantes/tanise.jpeg",
   },
+  {
+    name: "Dra. Helena Stein",
+    theme:
+      "Ortopedista pediátrica, foi a primeira mulher a ingressar na residência de Ortopedia em Joinville. Integra o corpo clínico do Hospital Infantil Dr. Jeser Amarante Faria desde sua inauguração, em 2008. É especialista em Ortopedia Pediátrica pelo Hospital Pequeno Príncipe e pela AACD, além de especialista em Cirurgia da Mão. Atua como preceptora da Residência Médica do Hospital Municipal São José e como professora do curso de Medicina da Univille.",
+    image: "/palestrantes/helena.jpeg",
+  },
+  {
+    name: "Maicon Rodrigo",
+    theme:
+      "Graduado em Educação Física, com pós-graduação em Fisiologia do Exercício e acadêmico de Enfermagem. Formação como AEMT (Advanced Emergency Medical Technician) pela Fundación EASPA, na Argentina, e como EMT (Emergency Medical Technician) – Paramédico pelo CESPAM, na Argentina. Instrutor Internacional HSI (Health & Safety Institute), ID nº 11090793, e instrutor do programa STOP THE BLEED®️, ID nº 92175.",
+    image: "/palestrantes/maicon.jpeg",
+  }
 ];
 const scheduleByDay = [
   {
@@ -340,6 +352,21 @@ const sponsors = [
   role: "Apoiadora",
   image: "/logo-c1.png",
   },
+  {
+  name: "Hospital Dona Helena",
+  role: "Apoiadora",
+  image: "/logo-dona-helena.png",
+  },
+  {
+  name: "ACM",
+  role: "Apoiadora",
+  image: "/logo-acm.png",
+  },
+  {
+  name: "Square",
+  role: "Apoiadora",
+  image: "/logo-square.png",
+  }
 ];
 
 export default function HomePage() {
@@ -951,10 +978,8 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {sponsors.map((sponsor, index) => (
-              <RevealOnScroll
-                key={sponsor.name}
-                delay={index * 100}
+            {sponsors.map((sponsor) => (
+              <RevealOnScroll key={sponsor.name}
               >
                 <div className="group flex h-full min-h-[340px] flex-col rounded-[2rem] border border-[#d9e8ef] bg-white p-7 text-center shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#245b7a] hover:shadow-md">
                   <div className="flex h-40 w-full items-center justify-center rounded-3xl bg-[#f7fbfd] p-6">
