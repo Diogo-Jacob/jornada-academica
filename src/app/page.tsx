@@ -47,7 +47,30 @@ const speakers = [
     theme:
       "Graduado em Educação Física, com pós-graduação em Fisiologia do Exercício e acadêmico de Enfermagem. Formação como AEMT (Advanced Emergency Medical Technician) pela Fundación EASPA, na Argentina, e como EMT (Emergency Medical Technician) – Paramédico pelo CESPAM, na Argentina. Instrutor Internacional HSI (Health & Safety Institute), ID nº 11090793, e instrutor do programa STOP THE BLEED®️, ID nº 92175.",
     image: "/palestrantes/maicon.jpeg",
-  }
+  },
+  {
+    name: "Dr. Breno Rampeloti",
+    theme:
+      "Médico graduado pela Universidade da Região de Joinville (Univille). Foi presidente da Associação Brasileira das Ligas Acadêmicas de Neurologia, vinculada à Academia Brasileira de Neurologia (ABN). Atualmente, é médico residente do primeiro ano de Anestesiologia no Hospital Municipal São José, em Joinville.",
+    image: "/palestrantes/breno.jpeg",
+  },
+  {
+    name: "Dr. Rhanderson Cardoso",
+    theme:
+      "Rhanderson Cardoso é médico formado pela Universidade Federal de Goiás, com residência em clínica médica pela Universidade de Miami e Jackson Memorial Hospital, onde também foi residente-chefe. Ele também fez residência em cardiologia no Johns Hopkins Hospital e mestrado em epidemiologia cardiovascular na Johns Hopkins University. Rhanderson completou fellowship em imagem cardíaca no Brigham and Women’s Hospital, Harvard Medical School, onde também foi chief-fellow. Hoje, Rhanderson Cardoso atua como cardiologista e professor na Harvard Medical School, em Boston, EUA. O professor Rhanderson tem mais de 100 publicações em grandes revistas da cardiologia e 3000 citações na literatura. Além disso, Rhanderson é fundador e professor do Intensivo de ECG, treinamento com mais de 10000 alunos globalmente. Ele também é fundador do Meta-Analysis Academy, treinamento de publicações científicas de alto impacto por meio de revisões sistemáticas e meta-análises. Através desse treinamento, Rhanderson já capacitou alunos em 150 países, com publicações nos maiores periódicos médicos do mundo, como JAMA, Lancet, JACC, AJOG, European Radiology, Neurosurgery, Ophthalmology e muito mais." ,
+    image: "/palestrantes/cardoso.jpeg",
+
+    links: [
+      {
+        label: "PubMed",
+        url: "https://pubmed.ncbi.nlm.nih.gov/?term=Rhanderson+Cardoso&sort=date&size=100",
+      },
+      {
+        label: "Google Scholar",
+        url: "https://scholar.google.com/citations?user=KqRtzghAAAAJ&hl=en",
+      },
+    ],
+  },
 ];
 const scheduleByDay = [
   {
@@ -308,6 +331,11 @@ const dateScheduleItems = [
 
 const sponsors = [
   {
+    name: "CAMPGO",
+    role: "Organização",
+    image: "/campgo-logo.png",
+  },
+  {
     name: "UNIVILLE",
     role: "Apoiadora institucional",
     image: "/logo-univille.png",
@@ -321,11 +349,6 @@ const sponsors = [
     name: "Medway",
     role: "Apoiadora",
     image: "/logo-medway.png",
-  },
-  {
-    name: "CAMPGO",
-    role: "Organização",
-    image: "/campgo-logo.png",
   },
   {
     name: "Helper Hub",
@@ -887,6 +910,22 @@ export default function HomePage() {
                       <p className="mt-3 font-semibold leading-7 text-[#245b7a]">
                         {speaker.theme}
                       </p>
+
+                      {"links" in speaker && speaker.links?.length ? (
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          {speaker.links.map((link) => (
+                            <a
+                              key={link.url}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-full border border-[#b9d4df] bg-white px-3 py-1.5 text-sm font-medium text-[#245b7a] transition hover:bg-[#eef7fa]"
+                            >
+                              {link.label}
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </RevealOnScroll>
