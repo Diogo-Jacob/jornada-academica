@@ -37,11 +37,39 @@ export default async function AdminPage() {
     redirect("/acesso-negado");
   }
 
+  const {
+    data: currentEvent,
+    error: currentEventError,
+  } = await supabase
+    .from("events")
+    .select("id")
+    .eq("status", "published")
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (currentEventError) {
+    console.error("Erro ao carregar evento atual:", {
+      message: currentEventError.message,
+      details: currentEventError.details,
+      hint: currentEventError.hint,
+      code: currentEventError.code,
+    });
+  }
+
   const { data: submissionsData, error: submissionsError } =
-    await supabase
-      .from("submissions")
-      .select("status")
-      .neq("status", "draft");
+    currentEvent
+      ? await supabase
+          .from("submissions")
+          .select("status")
+          .eq("event_id", currentEvent.id)
+          .neq("status", "draft")
+      : {
+          data: [],
+          error: null,
+        };
       
 
   if (submissionsError) {

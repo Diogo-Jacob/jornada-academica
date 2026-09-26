@@ -360,6 +360,24 @@ function getAutomaticResultClassName(result: AutomaticResult) {
   return "border-slate-300 bg-slate-50 text-slate-700";
 }
 
+function getOfficialResultFromStatus(
+  status: string
+): AutomaticResult {
+  if (status === "selected_oral") {
+    return "oral";
+  }
+
+  if (status === "selected_banner") {
+    return "banner";
+  }
+
+  if (status === "not_selected") {
+    return "not_selected";
+  }
+
+  return "pending";
+}
+
 function buildRankedSubmissions({
   submissions,
   assignments,
@@ -520,18 +538,16 @@ export default async function AdminResultadosPage({
 
   const currentEvent = currentEventData ?? null;
 
+  if (!currentEvent) {
+  redirect("/admin?erro=evento-nao-encontrado");
+}
+
   const resultsPublishDate =
     currentEvent?.results_publish_at
       ? new Date(currentEvent.results_publish_at)
       : null;
 
-  const submissionEndDate =
-    currentEvent?.submission_ends_at
-      ? new Date(currentEvent.submission_ends_at)
-      : null;
-
-  const resultsReleaseDate =
-    resultsPublishDate ?? submissionEndDate;
+  const resultsReleaseDate = resultsPublishDate;
 
   const hasResultsReleaseDatePassed = resultsReleaseDate
     ? new Date() >= resultsReleaseDate
@@ -559,6 +575,7 @@ export default async function AdminResultadosPage({
           display_order
         )
       `)
+      .eq("event_id", currentEvent.id)
       .in("status", [
         "under_evaluation",
         "one_evaluation_completed",
@@ -568,6 +585,8 @@ export default async function AdminResultadosPage({
         "selected_oral",
         "selected_banner",
         "not_selected",
+        "third_evaluator_required",
+        "evaluator_replacement_required",
       ])
       .order("updated_at", {
         ascending: false,
@@ -709,31 +728,44 @@ export default async function AdminResultadosPage({
   });
 
   const completedRows = rankedSubmissions.filter(
-    (row) => row.officialScore.average !== null
+  (row) => row.officialScore.average !== null
   );
 
+  /*
+  * O status salvo em submissions é a fonte oficial
+  * da classificação final.
+  */
   const oralRows = rankedSubmissions.filter(
-    (row) => row.automaticResult === "oral"
+    (row) => row.submission.status === "selected_oral"
   );
 
   const bannerRows = rankedSubmissions.filter(
-    (row) => row.automaticResult === "banner"
+    (row) => row.submission.status === "selected_banner"
   );
 
   const notSelectedRows = rankedSubmissions.filter(
-    (row) => row.automaticResult === "not_selected"
-  );
-
-  const pendingRows = rankedSubmissions.filter(
-    (row) => row.automaticResult === "pending"
-  );
-
-  const thirdEvaluatorRows = completedRows.filter(
-    (row) => row.officialScore.usedClosestPair
+    (row) => row.submission.status === "not_selected"
   );
 
   const finalResultRowsCount =
-    oralRows.length + bannerRows.length + notSelectedRows.length;
+    oralRows.length +
+    bannerRows.length +
+    notSelectedRows.length;
+
+  const pendingRows = rankedSubmissions.filter(
+    (row) =>
+      ![
+        "selected_oral",
+        "selected_banner",
+        "not_selected",
+      ].includes(row.submission.status)
+  );
+
+  const thirdEvaluatorRows = rankedSubmissions.filter(
+    (row) =>
+      row.submission.status === "third_evaluator_required" ||
+      row.officialScore.usedClosestPair
+  );
 
   const canSendResultsNotice =
     hasResultsReleaseDatePassed && finalResultRowsCount > 0;
@@ -830,8 +862,8 @@ export default async function AdminResultadosPage({
 
             <div className="mt-5 grid gap-4">
               <HeroMetric
-                label="Trabalhos avaliados"
-                value={completedRows.length}
+                label="Resultados definidos"
+                value={finalResultRowsCount}
               />
 
               <HeroMetric
@@ -850,9 +882,9 @@ export default async function AdminResultadosPage({
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <MetricCard
-          label="Trabalhos avaliados"
-          value={completedRows.length}
-          description="Com média oficial calculada."
+          label="Resultados definidos"
+          value={finalResultRowsCount}
+          description="Trabalhos com classificação final registrada."
         />
 
         <MetricCard
@@ -1144,7 +1176,7 @@ export default async function AdminResultadosPage({
                     </th>
 
                     <th className="px-4 py-3 font-medium">
-                      Resultado automático
+                      Resultado oficial
                     </th>
 
                     <th className="px-4 py-3 font-medium">
@@ -1282,7 +1314,9 @@ export default async function AdminResultadosPage({
 
                         <td className="px-4 py-4">
                           <ResultBadge
-                            result={row.automaticResult}
+                            result={getOfficialResultFromStatus(
+                              row.submission.status
+                            )}
                           />
                         </td>
 

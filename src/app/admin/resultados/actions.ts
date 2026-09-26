@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth/get-current-user";
 const ACTION_TIMEOUT_MS = 30_000;
 const STATUS_UPDATE_TIMEOUT_MS = 15_000;
 const EMAIL_TIMEOUT_MS = 15_000;
+const RESULTS_EMAIL_BATCH_SIZE = 5;
 
 type FinalResultStatus =
   | "selected_oral"
@@ -192,7 +193,7 @@ export async function setFinalResult(formData: FormData) {
   const { data: submission, error: submissionError } =
     await supabase
       .from("submissions")
-      .select("id, title, status")
+      .select("id, title, status, results_notified_at")
       .eq("id", submissionId)
       .maybeSingle();
 
@@ -217,6 +218,13 @@ export async function setFinalResult(formData: FormData) {
       "O trabalho selecionado não foi encontrado."
     );
   }
+
+  if (submission.results_notified_at) {
+  redirectWithMessage(
+    "erro",
+    "Este resultado já foi comunicado ao autor responsável e não pode mais ser alterado por esta tela."
+  );
+}
 
   const allowedStatuses = [
     "evaluations_completed",
@@ -245,6 +253,7 @@ export async function setFinalResult(formData: FormData) {
           status: finalStatus,
         })
         .eq("id", submissionId)
+        .is("results_notified_at", null)
         .in("status", allowedStatuses)
         .select("id, status")
         .maybeSingle(),
@@ -270,7 +279,7 @@ export async function setFinalResult(formData: FormData) {
   if (!updatedSubmission) {
     redirectWithMessage(
       "erro",
-      "O resultado não pôde ser definido porque o trabalho já foi alterado. Atualize a página e tente novamente."
+      "O resultado não pôde ser alterado. O trabalho pode ter sido modificado ou o resultado já pode ter sido comunicado ao autor. Atualize a página e tente novamente."
     );
   }
 
@@ -288,14 +297,219 @@ export async function setFinalResult(formData: FormData) {
   );
 }
 
+async function sendSingleResultEmail({
+  supabase,
+  submission,
+}: {
+  supabase: Awaited<ReturnType<typeof ensureAdmin>>["supabase"];
+  submission: {
+    id: string;
+    title: string;
+    protocol: string | null;
+    status: string;
+    submission_authors:
+      | {
+          id: string;
+          full_name: string;
+          email: string;
+          author_role: string;
+          display_order: number;
+        }[]
+      | null;
+  };
+}) {
+  const authors = [
+    ...(submission.submission_authors ?? []),
+  ].sort(
+    (firstAuthor, secondAuthor) =>
+      firstAuthor.display_order -
+      secondAuthor.display_order
+  );
+
+  const responsibleAuthor =
+    authors.find(
+      (author) =>
+        author.author_role === "responsible"
+    ) ?? null;
+
+  if (!responsibleAuthor?.email) {
+    console.error(
+      "Trabalho com resultado definido sem e-mail do autor responsável:",
+      {
+        submissionId: submission.id,
+        protocol: submission.protocol,
+        title: submission.title,
+      }
+    );
+
+    return {
+      success: false,
+      submissionId: submission.id,
+    };
+  }
+
+  try {
+    const isSelected = [
+      "selected_oral",
+      "selected_banner",
+    ].includes(submission.status);
+
+    const emailSubject = isSelected
+      ? `Trabalho selecionado - ${
+          submission.protocol ?? submission.title
+        }`
+      : `Resultado da avaliação - ${
+          submission.protocol ?? submission.title
+        }`;
+
+    const emailHtml = isSelected
+      ? resultsAvailableEmail({
+          authorName:
+            responsibleAuthor.full_name ??
+            "Autor(a)",
+          title: submission.title,
+          protocol: submission.protocol,
+          resultLabel: getResultLabel(
+            submission.status
+          ),
+        })
+      : resultNotSelectedEmail({
+          authorName:
+            responsibleAuthor.full_name ??
+            "Autor(a)",
+          title: submission.title,
+          protocol: submission.protocol,
+        });
+
+    const emailResult = await withTimeout(
+      async () =>
+        await sendEmail({
+          to: responsibleAuthor.email,
+          subject: emailSubject,
+          html: emailHtml,
+        }),
+      "O envio do e-mail de resultado demorou mais que o esperado.",
+      EMAIL_TIMEOUT_MS
+    );
+
+    if (!emailResult.success) {
+      console.error(
+        "E-mail de resultado não enviado:",
+        {
+          authorEmail:
+            responsibleAuthor.email,
+          submissionId: submission.id,
+          emailResult,
+        }
+      );
+
+      return {
+        success: false,
+        submissionId: submission.id,
+      };
+    }
+
+    const { error: notifiedAtError } =
+      await supabase
+        .from("submissions")
+        .update({
+          results_notified_at:
+            new Date().toISOString(),
+        })
+        .eq("id", submission.id)
+        .is("results_notified_at", null);
+
+    if (notifiedAtError) {
+      console.error(
+        "E-mail enviado, mas não foi possível registrar o envio do resultado:",
+        {
+          submissionId: submission.id,
+          authorEmail:
+            responsibleAuthor.email,
+          message: notifiedAtError.message,
+          details: notifiedAtError.details,
+          hint: notifiedAtError.hint,
+          code: notifiedAtError.code,
+        }
+      );
+
+      return {
+        success: false,
+        submissionId: submission.id,
+      };
+    }
+
+    return {
+      success: true,
+      submissionId: submission.id,
+    };
+  } catch (emailError) {
+    console.error(
+      "E-mail de resultado falhou ou demorou demais:",
+      {
+        authorEmail:
+          responsibleAuthor.email,
+        submissionId: submission.id,
+        message:
+          emailError instanceof Error
+            ? emailError.message
+            : "Erro desconhecido",
+        error: emailError,
+      }
+    );
+
+    return {
+      success: false,
+      submissionId: submission.id,
+    };
+  }
+}
+
 export async function sendResultsAvailableEmails() {
   const { supabase } = await ensureAdmin();
 
   const currentEvent =
     await ensureResultsNoticeCanBeSent(supabase);
 
-  const { data: submissions, error: submissionsError } =
-    await supabase
+  const {
+    data: lockAcquired,
+    error: lockError,
+  } = await supabase.rpc(
+    "claim_results_email_dispatch",
+    {
+      target_event_id: currentEvent.id,
+    }
+  );
+
+  if (lockError) {
+    console.error(
+      "Erro ao bloquear o disparo de resultados:",
+      {
+        message: lockError.message,
+        details: lockError.details,
+        hint: lockError.hint,
+        code: lockError.code,
+      }
+    );
+
+    redirectWithMessage(
+      "erro",
+      "Não foi possível iniciar o envio dos resultados."
+    );
+  }
+
+  if (!lockAcquired) {
+    redirectWithMessage(
+      "erro",
+      "Já existe um envio de resultados em andamento. Aguarde a conclusão antes de tentar novamente."
+    );
+  }
+
+  try {
+    const {
+      data: submissions,
+      error: submissionsError,
+    } = await supabase
       .from("submissions")
       .select(`
         id,
@@ -323,180 +537,103 @@ export async function sendResultsAvailableEmails() {
         ascending: true,
       });
 
-  if (submissionsError) {
-    console.error("Erro ao carregar trabalhos selecionados:", {
-      message: submissionsError.message,
-      details: submissionsError.details,
-      hint: submissionsError.hint,
-      code: submissionsError.code,
-    });
-
-    redirectWithMessage(
-      "erro",
-      "Não foi possível carregar os trabalhos selecionados."
-    );
-  }
-
-  if (!submissions?.length) {
-    redirectWithMessage(
-      "erro",
-      "Não há resultados pendentes de notificação. Os trabalhos com resultado definido já foram notificados ou ainda não possuem resultado final."
-    );
-  }
-
-  let sentCount = 0;
-  let failedCount = 0;
-
-  for (const submission of submissions) {
-    const authors = [
-      ...(submission.submission_authors ?? []),
-    ].sort(
-      (firstAuthor, secondAuthor) =>
-        firstAuthor.display_order -
-        secondAuthor.display_order
-    );
-
-    const responsibleAuthor =
-      authors.find(
-        (author) => author.author_role === "responsible"
-      ) ??
-      authors.find(
-        (author) => author.display_order === 1
-      ) ??
-      null;
-
-    if (!responsibleAuthor?.email) {
-      failedCount += 1;
-
+    if (submissionsError) {
       console.error(
-        "Trabalho selecionado sem e-mail do autor responsável:",
+        "Erro ao carregar trabalhos com resultado definido:",
         {
-          submissionId: submission.id,
-          protocol: submission.protocol,
-          title: submission.title,
+          message: submissionsError.message,
+          details: submissionsError.details,
+          hint: submissionsError.hint,
+          code: submissionsError.code,
         }
       );
 
-      continue;
+      redirectWithMessage(
+        "erro",
+        "Não foi possível carregar os trabalhos com resultado definido."
+      );
     }
 
-    try {
-      const isSelected = [
-        "selected_oral",
-        "selected_banner",
-      ].includes(submission.status);
+    if (!submissions?.length) {
+      redirectWithMessage(
+        "erro",
+        "Não há resultados pendentes de notificação. Os trabalhos com resultado definido já foram notificados ou ainda não possuem resultado final."
+      );
+    }
 
-      const emailSubject = isSelected
-        ? `Trabalho selecionado - ${
-            submission.protocol ?? submission.title
-          }`
-        : `Resultado da avaliação - ${
-            submission.protocol ?? submission.title
-          }`;
+    let sentCount = 0;
+    let failedCount = 0;
 
-      const emailHtml = isSelected
-        ? resultsAvailableEmail({
-            authorName:
-              responsibleAuthor.full_name ?? "Autor(a)",
-            title: submission.title,
-            protocol: submission.protocol,
-            resultLabel: getResultLabel(submission.status),
+    for (
+      let index = 0;
+      index < submissions.length;
+      index += RESULTS_EMAIL_BATCH_SIZE
+    ) {
+      const batch = submissions.slice(
+        index,
+        index + RESULTS_EMAIL_BATCH_SIZE
+      );
+
+      const batchResults = await Promise.all(
+        batch.map((submission) =>
+          sendSingleResultEmail({
+            supabase,
+            submission,
           })
-        : resultNotSelectedEmail({
-            authorName:
-              responsibleAuthor.full_name ?? "Autor(a)",
-            title: submission.title,
-            protocol: submission.protocol,
-          });
-
-      const emailResult = await withTimeout(
-        async () =>
-          await sendEmail({
-            to: responsibleAuthor.email,
-            subject: emailSubject,
-            html: emailHtml,
-          }),
-        "O envio do e-mail de resultado demorou mais que o esperado.",
-        EMAIL_TIMEOUT_MS
+        )
       );
-      if (emailResult.success) {
-        const { error: notifiedAtError } =
-          await supabase
-            .from("submissions")
-            .update({
-              results_notified_at:
-                new Date().toISOString(),
-            })
-            .eq("id", submission.id)
-            .is("results_notified_at", null);
 
-        if (notifiedAtError) {
+      for (const result of batchResults) {
+        if (result.success) {
+          sentCount += 1;
+        } else {
           failedCount += 1;
-
-          console.error(
-            "E-mail enviado, mas não foi possível registrar o envio do resultado:",
-            {
-              submissionId: submission.id,
-              authorEmail: responsibleAuthor.email,
-              message: notifiedAtError.message,
-              details: notifiedAtError.details,
-              hint: notifiedAtError.hint,
-              code: notifiedAtError.code,
-            }
-          );
-
-          continue;
         }
-
-        sentCount += 1;
-      } else {
-        failedCount += 1;
-
-        console.error(
-          "E-mail de resultado não enviado:",
-          {
-            authorEmail: responsibleAuthor.email,
-            submissionId: submission.id,
-            emailResult,
-          }
-        );
       }
-    } catch (emailError) {
-      failedCount += 1;
+    }
 
-      console.error(
-        "E-mail de resultado falhou ou demorou demais:",
-        {
-          authorEmail: responsibleAuthor.email,
-          submissionId: submission.id,
-          message:
-            emailError instanceof Error
-              ? emailError.message
-              : "Erro desconhecido",
-          error: emailError,
-        }
+    revalidatePath("/admin/resultados");
+
+    if (sentCount === 0) {
+      redirectWithMessage(
+        "erro",
+        "Nenhum e-mail foi enviado. Confira os autores cadastrados e a configuração de e-mail."
       );
     }
-  }
 
-  revalidatePath("/admin/resultados");
+    if (failedCount > 0) {
+      redirectWithMessage(
+        "sucesso",
+        `${sentCount} e-mail(s) de resultado enviados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
+      );
+    }
 
-  if (sentCount === 0) {
-    redirectWithMessage(
-      "erro",
-      "Nenhum e-mail foi enviado. Confira os autores cadastrados e a configuração de e-mail."
-    );
-  }
-
-  if (failedCount > 0) {
     redirectWithMessage(
       "sucesso",
-      `${sentCount} e-mail(s) de resultado enviados. ${failedCount} envio(s) apresentaram erro e foram registrados no terminal.`
+      `${sentCount} e-mail(s) de resultado enviados com sucesso.`
     );
-  }
+  } finally {
+    const releaseLockResult =
+      await supabase.rpc(
+        "release_results_email_dispatch",
+        {
+          target_event_id: currentEvent.id,
+        }
+      );
 
-  redirectWithMessage(
-    "sucesso",
-    `${sentCount} e-mail(s) de resultado enviados com sucesso.`
-  );
+    const releaseError = releaseLockResult.error;
+
+    if (releaseError !== null) {
+      console.error(
+        "Erro ao liberar bloqueio do envio de resultados:",
+        {
+          eventId: currentEvent.id,
+          message: releaseError?.message ?? "Erro desconhecido",
+          details: releaseError?.details ?? null,
+          hint: releaseError?.hint ?? null,
+          code: releaseError?.code ?? null,
+        }
+      );
+    }
+  }
 }
