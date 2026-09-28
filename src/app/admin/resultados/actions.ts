@@ -17,6 +17,14 @@ type FinalResultStatus =
   | "selected_banner"
   | "not_selected";
 
+
+  type ClassificationPreviewRow = {
+    submission_id: string;
+    protocol: string | null;
+    current_status: string;
+    simulated_status: string;
+    needs_commission: boolean;
+  };
 async function withTimeout<T>(
   action: () => Promise<T>,
   timeoutMessage: string,
@@ -160,6 +168,76 @@ async function ensureResultsNoticeCanBeSent(
     redirectWithMessage(
       "erro",
       "O aviso de resultados só pode ser enviado após a data de publicação dos resultados."
+    );
+  }
+
+  const {
+    data: classificationPreview,
+    error: classificationPreviewError,
+  } = await supabase.rpc(
+    "preview_final_classification",
+    {
+      target_event_id: currentEvent.id,
+      selected_limit: 40,
+      review_percentage: 50,
+      oral_limit: 5,
+      minimum_score: 7.0,
+    }
+  );
+
+  if (classificationPreviewError) {
+    console.error(
+      "Erro ao validar classificação final:",
+      {
+        message: classificationPreviewError.message,
+        details: classificationPreviewError.details,
+        hint: classificationPreviewError.hint,
+        code: classificationPreviewError.code,
+      }
+    );
+
+    redirectWithMessage(
+      "erro",
+      "Não foi possível validar a classificação final antes do envio."
+    );
+  }
+
+  const classificationRows =
+    (classificationPreview ?? []) as ClassificationPreviewRow[];
+
+  const commissionTies =
+    classificationRows.filter(
+      (row) => row.needs_commission === true
+    );
+
+  if (commissionTies.length > 0) {
+    redirectWithMessage(
+      "erro",
+      "Existe empate que exige deliberação da Comissão Científica. Os e-mails não podem ser enviados antes da decisão."
+    );
+  }
+
+  const classificationMismatches =
+    classificationRows.filter(
+      (row) =>
+        row.current_status !==
+        row.simulated_status
+    );
+
+  if (classificationMismatches.length > 0) {
+    console.warn(
+      "Envio bloqueado: classificação salva diverge da regra oficial.",
+      classificationMismatches.map((row) => ({
+        submissionId: row.submission_id,
+        protocol: row.protocol,
+        atual: row.current_status,
+        esperado: row.simulated_status,
+      }))
+    );
+
+    redirectWithMessage(
+      "erro",
+      `${classificationMismatches.length} trabalho(s) ainda possuem resultado divergente da classificação oficial. Recalcule os resultados antes de enviar os e-mails.`
     );
   }
 

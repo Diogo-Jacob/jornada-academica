@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Download,
   FileCheck2,
+  Star,
   FileText,
   Send,
   ShieldCheck,
@@ -52,6 +53,18 @@ type TrabalhoPageProps = {
   }>;
 };
 
+type StudentScientificFeedbackRow = {
+  assignment_id: string;
+  evaluation_number: number;
+  completed_at: string | null;
+  response_id: string;
+  criterion_name: string;
+  max_score: number;
+  display_order: number;
+  score: number;
+  observation: string | null;
+};
+
 function formatFileSize(size: number) {
   if (size >= 1024 * 1024) {
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
@@ -62,6 +75,13 @@ function formatFileSize(size: number) {
 
 function getOrdinal(position: number) {
   return `${position}º`;
+}
+
+function formatScore(score: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(score);
 }
 
 function formatStatus(status: string) {
@@ -267,6 +287,14 @@ export default async function TrabalhoPage({
     Boolean(finalResultReleaseDate) &&
     new Date() >= new Date(finalResultReleaseDate);
 
+    const canShowScientificFeedback =
+      canShowFinalResult &&
+      [
+        "selected_oral",
+        "selected_banner",
+        "not_selected",
+      ].includes(submission.status);
+
   const displayedStatus =
     !canShowFinalResult &&
     [
@@ -277,6 +305,62 @@ export default async function TrabalhoPage({
       ? "evaluations_completed"
       : submission.status;
 
+      let scientificFeedback: StudentScientificFeedbackRow[] = [];
+
+      if (canShowScientificFeedback) {
+        const {
+          data: scientificFeedbackData,
+          error: scientificFeedbackError,
+        } = await supabase.rpc(
+          "get_student_scientific_feedback",
+          {
+            target_submission_id: submission.id,
+          }
+        );
+
+        if (scientificFeedbackError) {
+          console.error(
+            "Erro ao carregar devolutiva científica:",
+            {
+              message: scientificFeedbackError.message,
+              details: scientificFeedbackError.details,
+              hint: scientificFeedbackError.hint,
+              code: scientificFeedbackError.code,
+            }
+          );
+        }
+
+        scientificFeedback =
+          (scientificFeedbackData ??
+            []) as StudentScientificFeedbackRow[];
+      }
+
+      const feedbackByEvaluation =
+        new Map<number, StudentScientificFeedbackRow[]>();
+
+      for (const row of scientificFeedback) {
+        const current =
+          feedbackByEvaluation.get(
+            Number(row.evaluation_number)
+          ) ?? [];
+
+        current.push(row);
+
+        feedbackByEvaluation.set(
+          Number(row.evaluation_number),
+          current
+        );
+      }
+
+      const scientificEvaluations =
+        Array.from(
+          feedbackByEvaluation.entries()
+        ).sort(
+          ([firstNumber], [secondNumber]) =>
+            firstNumber - secondNumber
+        );
+
+    
   return (
     <div className="space-y-8">
       <Button
@@ -369,6 +453,128 @@ export default async function TrabalhoPage({
         status={submission.status}
         canShowResult={canShowFinalResult}
       />
+
+      {canShowScientificFeedback &&
+        scientificEvaluations.length > 0 && (
+          <Card className="overflow-hidden rounded-[2rem] border-[#d9e8ef] bg-white shadow-sm">
+            <CardHeader className="border-b border-[#d9e8ef] bg-[#f7fbfd]">
+              <CardTitle className="flex items-center gap-2 text-[#102a3d]">
+                <Star className="size-5 text-[#245b7a]" />
+                Devolutiva da avaliação científica
+              </CardTitle>
+
+              <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
+                Consulte abaixo as notas e justificativas
+                registradas durante a avaliação do trabalho.
+              </p>
+            </CardHeader>
+
+            <CardContent className="space-y-5 p-6">
+              {scientificEvaluations.map(
+               ([evaluationNumber, responses]) => {
+
+                  const totalScore =
+                    responses.reduce(
+                      (total, response) =>
+                        total +
+                        Number(response.score),
+                      0
+                    );
+
+                  return (
+                    <div
+                      key={evaluationNumber}
+                      className="overflow-hidden rounded-3xl border border-[#d9e8ef] bg-[#f7fbfd]"
+                    >
+                      <div className="flex flex-col gap-3 border-b border-[#d9e8ef] p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-[#102a3d]">
+                            Avaliação {evaluationNumber}
+                          </p>
+
+                          <p className="mt-1 text-sm text-[#5f7d90]">
+                            Avaliação científica
+                            concluída.
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#d9e8ef] bg-white px-5 py-3">
+                          <p className="text-xs text-[#5f7d90]">
+                            Nota total
+                          </p>
+
+                          <p className="mt-1 text-2xl font-bold text-[#102a3d]">
+                            {formatScore(totalScore)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-[#d9e8ef] bg-white">
+                        {responses.map((response) => {
+                          const maxScore =
+                            Number(response.max_score ?? 0);
+
+                          return (
+                              <div
+                                key={response.response_id}
+                                className="p-5"
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#245b7a]">
+                                      Critério
+                                    </p>
+
+                                    <p className="mt-2 font-medium text-[#102a3d]">
+                                      {response.criterion_name ||
+                                        "Critério não localizado"}
+                                    </p>
+                                  </div>
+
+                                  <div className="shrink-0 rounded-xl bg-[#eef7fa] px-4 py-2 text-sm">
+                                    <span className="font-semibold text-[#102a3d]">
+                                      {formatScore(
+                                        Number(
+                                          response.score
+                                        )
+                                      )}
+                                    </span>
+
+                                    {maxScore > 0 && (
+                                      <span className="text-[#5f7d90]">
+                                        {" "}
+                                        /{" "}
+                                        {formatScore(
+                                          maxScore
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 rounded-2xl border border-[#d9e8ef] bg-[#f7fbfd] p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#245b7a]">
+                                    Justificativa
+                                  </p>
+
+                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4a6678]">
+                                    {response.observation
+                                      ?.trim() ||
+                                      "Nenhuma justificativa registrada."}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       <Card
         id="autores-section"

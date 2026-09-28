@@ -87,9 +87,49 @@ type AutomaticResult =
 type RankedSubmission = {
   submission: Submission;
   assignments: Assignment[];
-  officialScore: OfficialScoreResult;
+
+  officialScore: {
+    average: number | null;
+    completedEvaluations: number;
+    consideredScores: AssignmentScore[];
+    allScores: AssignmentScore[];
+    usedClosestPair: boolean;
+  };
+
   rank: number | null;
   automaticResult: AutomaticResult;
+
+  tieBreakScores: {
+    metodologia: number | null;
+    resultadosDiscussao: number | null;
+    introducao: number | null;
+    conclusao: number | null;
+    redacaoCientifica: number | null;
+  };
+};
+
+type OfficialScoreRow = {
+  submission_id: string;
+  protocol: string | null;
+  title: string;
+  category_name: string | null;
+  is_review: boolean;
+
+  responsible_name: string | null;
+  responsible_email: string | null;
+
+  completed_evaluations: number;
+  used_closest_pair: boolean;
+
+  final_average: number;
+
+  metodologia: number | null;
+  resultados_discussao: number | null;
+  introducao: number | null;
+  conclusao: number | null;
+  redacao_cientifica: number | null;
+
+  current_status: string;
 };
 
 function formatStatus(status: string) {
@@ -182,8 +222,7 @@ function getResponsibleAuthor(submission: Submission) {
   return (
     authors.find(
       (author) =>
-        author.author_role === "responsible" ||
-        author.display_order === 1
+        author.author_role === "responsible"
     ) ?? null
   );
 }
@@ -311,10 +350,19 @@ function getOfficialScoreResult({
       return averageComparison;
     }
 
-    return firstPair.first.assignment.assigned_at.localeCompare(
-      secondPair.first.assignment.assigned_at
+    const firstAssignmentComparison =
+      firstPair.first.assignment.id.localeCompare(
+        secondPair.first.assignment.id
+      );
+
+    if (firstAssignmentComparison !== 0) {
+      return firstAssignmentComparison;
+    }
+
+    return firstPair.second.assignment.id.localeCompare(
+      secondPair.second.assignment.id
     );
-  })[0];
+      })[0];
 
   return {
     average: selectedPair.average,
@@ -382,93 +430,326 @@ function buildRankedSubmissions({
   submissions,
   assignments,
   responses,
+  officialScoreMap,
 }: {
   submissions: Submission[];
   assignments: Assignment[];
   responses: EvaluationResponse[];
+  officialScoreMap: Map<string, OfficialScoreRow>;
 }): RankedSubmission[] {
-  const baseRows: RankedSubmission[] = submissions.map(
-    (submission) => {
-      const submissionAssignments = assignments
-        .filter(
-          (assignment) =>
-            assignment.submission_id === submission.id
-        )
-        .sort((firstAssignment, secondAssignment) =>
-          firstAssignment.assigned_at.localeCompare(
-            secondAssignment.assigned_at
-          )
-        );
 
-      const officialScore = getOfficialScoreResult({
-        assignments: submissionAssignments,
-        responses,
-      });
+  const baseRows: RankedSubmission[] =
+    submissions.map((submission) => {
+
+      const submissionAssignments =
+        assignments
+          .filter(
+            (assignment) =>
+              assignment.submission_id ===
+              submission.id
+          )
+          .sort(
+            (firstAssignment, secondAssignment) =>
+              firstAssignment.assigned_at.localeCompare(
+                secondAssignment.assigned_at
+              )
+          );
+
+      /*
+       * Mantemos isso apenas para mostrar
+       * notas individuais dos avaliadores.
+       * A média oficial NÃO vem daqui.
+       */
+      const localScoreDetails =
+        getOfficialScoreResult({
+          assignments:
+            submissionAssignments,
+          responses,
+        });
+
+      const databaseScore =
+        officialScoreMap.get(
+          submission.id
+        );
 
       return {
         submission,
-        assignments: submissionAssignments,
-        officialScore,
+
+        assignments:
+          submissionAssignments,
+
+        officialScore: {
+          average:
+            databaseScore?.final_average ??
+            null,
+
+          completedEvaluations:
+            databaseScore
+              ?.completed_evaluations ??
+            localScoreDetails
+              .completedEvaluations,
+
+          consideredScores:
+            localScoreDetails
+              .consideredScores,
+
+          allScores:
+            localScoreDetails
+              .allScores,
+
+          usedClosestPair:
+            databaseScore
+              ?.used_closest_pair ??
+            false,
+        },
+
         rank: null,
-        automaticResult: "pending",
+
+        automaticResult:
+          "pending",
+
+        tieBreakScores: {
+          metodologia:
+            databaseScore?.metodologia ??
+            null,
+
+          resultadosDiscussao:
+            databaseScore
+              ?.resultados_discussao ??
+            null,
+
+          introducao:
+            databaseScore?.introducao ??
+            null,
+
+          conclusao:
+            databaseScore?.conclusao ??
+            null,
+
+          redacaoCientifica:
+            databaseScore
+              ?.redacao_cientifica ??
+            null,
+        },
       };
-    }
-  );
-
-  const completedRows = baseRows
-    .filter((row) => row.officialScore.average !== null)
-    .sort((firstRow, secondRow) => {
-      const averageDiff =
-        Number(secondRow.officialScore.average) -
-        Number(firstRow.officialScore.average);
-
-      if (averageDiff !== 0) {
-        return averageDiff;
-      }
-
-      return firstRow.submission.title.localeCompare(
-        secondRow.submission.title
-      );
     });
 
-  const rankedCompletedRows: RankedSubmission[] =
-    completedRows.map((row, index) => ({
-      ...row,
-      rank: index + 1,
-      automaticResult:
-        index < 5
-          ? "oral"
-          : index < 40
-            ? "banner"
-            : "not_selected",
-    }));
 
-  const rankedMap = new Map(
-    rankedCompletedRows.map((row) => [
-      row.submission.id,
-      row,
-    ])
-  );
+  const completedRows =
+    baseRows
+      .filter(
+        (row) =>
+          row.officialScore.average !==
+          null
+      )
+      .sort(
+        (firstRow, secondRow) => {
+
+          const averageDiff =
+            Number(
+              secondRow
+                .officialScore
+                .average
+            ) -
+            Number(
+              firstRow
+                .officialScore
+                .average
+            );
+
+          if (averageDiff !== 0) {
+            return averageDiff;
+          }
+
+
+          /*
+           * 1º desempate:
+           * Metodologia
+           */
+          const metodologiaDiff =
+            Number(
+              secondRow.tieBreakScores
+                .metodologia ?? -Infinity
+            ) -
+            Number(
+              firstRow.tieBreakScores
+                .metodologia ?? -Infinity
+            );
+
+          if (
+            metodologiaDiff !== 0
+          ) {
+            return metodologiaDiff;
+          }
+
+
+          /*
+           * 2º:
+           * Resultados e Discussão
+           */
+          const resultadosDiff =
+            Number(
+              secondRow.tieBreakScores
+                .resultadosDiscussao ??
+                -Infinity
+            ) -
+            Number(
+              firstRow.tieBreakScores
+                .resultadosDiscussao ??
+                -Infinity
+            );
+
+          if (
+            resultadosDiff !== 0
+          ) {
+            return resultadosDiff;
+          }
+
+
+          /*
+           * 3º:
+           * Introdução
+           */
+          const introducaoDiff =
+            Number(
+              secondRow.tieBreakScores
+                .introducao ?? -Infinity
+            ) -
+            Number(
+              firstRow.tieBreakScores
+                .introducao ?? -Infinity
+            );
+
+          if (introducaoDiff !== 0) {
+            return introducaoDiff;
+          }
+
+
+          /*
+           * 4º:
+           * Conclusão
+           */
+          const conclusaoDiff =
+            Number(
+              secondRow.tieBreakScores
+                .conclusao ?? -Infinity
+            ) -
+            Number(
+              firstRow.tieBreakScores
+                .conclusao ?? -Infinity
+            );
+
+          if (conclusaoDiff !== 0) {
+            return conclusaoDiff;
+          }
+
+
+          /*
+           * 5º:
+           * Redação científica
+           */
+          const redacaoDiff =
+            Number(
+              secondRow.tieBreakScores
+                .redacaoCientifica ??
+                -Infinity
+            ) -
+            Number(
+              firstRow.tieBreakScores
+                .redacaoCientifica ??
+                -Infinity
+            );
+
+          if (redacaoDiff !== 0) {
+            return redacaoDiff;
+          }
+
+
+          /*
+           * Apenas para manter a lista
+           * deterministicamente ordenada.
+           *
+           * Se todos os critérios acima
+           * empatam, a decisão oficial
+           * deverá ser da Comissão.
+           */
+          return (
+            firstRow.submission.id.localeCompare(
+              secondRow.submission.id
+            )
+          );
+        }
+      );
+
+
+  const rankedCompletedRows =
+    completedRows.map(
+      (row, index) => ({
+        ...row,
+
+        rank: index + 1,
+
+        automaticResult:
+          getOfficialResultFromStatus(
+            row.submission.status
+          ),
+      })
+    );
+
+
+  const rankedMap =
+    new Map(
+      rankedCompletedRows.map(
+        (row) => [
+          row.submission.id,
+          row,
+        ]
+      )
+    );
+
 
   return baseRows
-    .map((row) => rankedMap.get(row.submission.id) ?? row)
-    .sort((firstRow, secondRow) => {
-      if (firstRow.rank && secondRow.rank) {
-        return firstRow.rank - secondRow.rank;
-      }
+    .map(
+      (row) =>
+        rankedMap.get(
+          row.submission.id
+        ) ?? row
+    )
+    .sort(
+      (firstRow, secondRow) => {
 
-      if (firstRow.rank && !secondRow.rank) {
-        return -1;
-      }
+        if (
+          firstRow.rank &&
+          secondRow.rank
+        ) {
+          return (
+            firstRow.rank -
+            secondRow.rank
+          );
+        }
 
-      if (!firstRow.rank && secondRow.rank) {
-        return 1;
-      }
+        if (
+          firstRow.rank &&
+          !secondRow.rank
+        ) {
+          return -1;
+        }
 
-      return secondRow.submission.updated_at.localeCompare(
-        firstRow.submission.updated_at
-      );
-    });
+        if (
+          !firstRow.rank &&
+          secondRow.rank
+        ) {
+          return 1;
+        }
+
+        return (
+          secondRow.submission.updated_at
+            .localeCompare(
+              firstRow.submission.updated_at
+            )
+        );
+      }
+    );
 }
 
 function ResultBadge({
@@ -576,18 +857,7 @@ export default async function AdminResultadosPage({
         )
       `)
       .eq("event_id", currentEvent.id)
-      .in("status", [
-        "under_evaluation",
-        "one_evaluation_completed",
-        "evaluations_completed",
-        "pending_confirmation",
-        "result_confirmed",
-        "selected_oral",
-        "selected_banner",
-        "not_selected",
-        "third_evaluator_required",
-        "evaluator_replacement_required",
-      ])
+      .neq("status", "draft")
       .order("updated_at", {
         ascending: false,
       });
@@ -605,6 +875,42 @@ export default async function AdminResultadosPage({
   }
 
   const submissions = (submissionsData ?? []) as Submission[];
+
+  /*
+  * Notas oficiais calculadas diretamente pelo PostgreSQL.
+  * Esta é a fonte oficial para média e critérios de desempate.
+  */
+  const {
+    data: officialScoresData,
+    error: officialScoresError,
+  } = await supabase.rpc(
+    "preview_submission_scores",
+    {
+      target_event_id: currentEvent.id,
+    }
+  );
+
+  if (officialScoresError) {
+    console.error(
+      "Erro ao carregar notas oficiais:",
+      {
+        message: officialScoresError.message,
+        details: officialScoresError.details,
+        hint: officialScoresError.hint,
+        code: officialScoresError.code,
+      }
+    );
+  }
+
+  const officialScores =
+    (officialScoresData ?? []) as OfficialScoreRow[];
+
+  const officialScoreMap = new Map(
+    officialScores.map((row) => [
+      row.submission_id,
+      row,
+    ])
+  );
 
   const submissionIds = Array.from(
     new Set(
@@ -688,8 +994,23 @@ export default async function AdminResultadosPage({
   let responses: EvaluationResponse[] = [];
 
   if (assignmentIds.length > 0) {
-    const { data: responsesData, error: responsesError } =
-      await supabase
+    const ASSIGNMENT_BATCH_SIZE = 50;
+
+    for (
+      let index = 0;
+      index < assignmentIds.length;
+      index += ASSIGNMENT_BATCH_SIZE
+    ) {
+      const assignmentBatch =
+        assignmentIds.slice(
+          index,
+          index + ASSIGNMENT_BATCH_SIZE
+        );
+
+      const {
+        data: responsesData,
+        error: responsesError,
+      } = await supabase
         .from("evaluation_responses")
         .select(`
           assignment_id,
@@ -697,21 +1018,39 @@ export default async function AdminResultadosPage({
           score_option_id,
           score
         `)
-        .in("assignment_id", assignmentIds);
+        .in(
+          "assignment_id",
+          assignmentBatch
+        );
 
-    if (responsesError) {
-      console.error(
-        "Erro ao carregar respostas das avaliações:",
-        {
-          message: responsesError.message,
-          details: responsesError.details,
-          hint: responsesError.hint,
-          code: responsesError.code,
-        }
-      );
+      if (responsesError) {
+        console.error(
+          "Erro ao carregar respostas das avaliações:",
+          {
+            message:
+              responsesError.message,
+
+            details:
+              responsesError.details,
+
+            hint:
+              responsesError.hint,
+
+            code:
+              responsesError.code,
+
+            batchStart: index,
+          }
+        );
+
+        continue;
+      }
+
+      const batchResponses =
+        (responsesData ?? []) as EvaluationResponse[];
+
+      responses.push(...batchResponses);
     }
-
-    responses = (responsesData ?? []) as EvaluationResponse[];
   }
 
   const evaluatorMap = new Map(
@@ -721,10 +1060,12 @@ export default async function AdminResultadosPage({
     ])
   );
 
-  const rankedSubmissions = buildRankedSubmissions({
+  const rankedSubmissions =
+  buildRankedSubmissions({
     submissions,
     assignments,
     responses,
+    officialScoreMap,
   });
 
   const completedRows = rankedSubmissions.filter(
@@ -761,6 +1102,20 @@ export default async function AdminResultadosPage({
       ].includes(row.submission.status)
   );
 
+  const scoredRowsWithoutFinalResult =
+  completedRows.filter(
+    (row) =>
+      ![
+        "selected_oral",
+        "selected_banner",
+        "not_selected",
+      ].includes(row.submission.status)
+  );
+
+const allScoredResultsDefined =
+  finalResultRowsCount > 0 &&
+  scoredRowsWithoutFinalResult.length === 0;
+
   const thirdEvaluatorRows = rankedSubmissions.filter(
     (row) =>
       row.submission.status === "third_evaluator_required" ||
@@ -768,7 +1123,8 @@ export default async function AdminResultadosPage({
   );
 
   const canSendResultsNotice =
-    hasResultsReleaseDatePassed && finalResultRowsCount > 0;
+    hasResultsReleaseDatePassed &&
+    allScoredResultsDefined;
 
   const resultsNoticeDisabledMessage = !resultsReleaseDate
     ? "Configure a data de publicação dos resultados antes de liberar o aviso."
@@ -778,7 +1134,9 @@ export default async function AdminResultadosPage({
         )}.`
       : finalResultRowsCount === 0
         ? "Nenhum trabalho com resultado final foi encontrado."
-        : null;
+        : scoredRowsWithoutFinalResult.length > 0
+          ? `${scoredRowsWithoutFinalResult.length} trabalho(s) avaliados ainda não possuem classificação final. Finalize esses resultados antes de enviar os e-mails.`
+          : null;
 
   const bestResult = completedRows[0] ?? null;
 
@@ -896,13 +1254,13 @@ export default async function AdminResultadosPage({
         <MetricCard
           label="Banner"
           value={bannerRows.length}
-          description="Trabalhos classificados do 6º ao 40º lugar."
+          description="Trabalhos selecionados para apresentação em banner."
         />
 
         <MetricCard
           label="Não selecionados"
           value={notSelectedRows.length}
-          description="Trabalhos avaliados fora das 40 primeiras posições."
+          description="Trabalhos que não atendem aos critérios finais de seleção."
         />
 
         <MetricCard
@@ -945,7 +1303,9 @@ export default async function AdminResultadosPage({
                   · Resultado:{" "}
                   <strong>
                     {getAutomaticResultLabel(
-                      bestResult.automaticResult
+                      getOfficialResultFromStatus(
+                        bestResult.submission.status
+                      )
                     )}
                   </strong>
                 </p>
@@ -1018,7 +1378,7 @@ export default async function AdminResultadosPage({
           icon={<Megaphone className="size-6 text-[#245b7a]" />}
           eyebrow="Classificação"
           title="Banner"
-          description="Trabalhos classificados do 6º ao 40º lugar."
+          description="Trabalhos aprovados para apresentação em banner conforme a classificação final."
         />
 
         <div className="p-6">
@@ -1357,16 +1717,19 @@ export default async function AdminResultadosPage({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-[#5f7d90]">
-              A classificação é automática: os 5 trabalhos com maiores
-              médias finais são classificados para apresentação oral. Os
-              trabalhos classificados da 6ª à 40ª posição são selecionados
-              para apresentação em banner. Os demais trabalhos avaliados
-              ficam como não selecionados. Quando há apenas duas avaliações
-              concluídas, a nota final corresponde à média das duas notas.
-              Quando há terceiro avaliador, a nota final corresponde à
-              média aritmética das duas notas mais próximas entre si. Em
-              caso de empate entre pares igualmente próximos, considera-se
-              o par com maior média.
+              São elegíveis para aprovação os trabalhos com nota final
+              igual ou superior a 7,0, observado o limite máximo de 40
+              trabalhos aprovados. Os trabalhos de revisão podem
+              corresponder a, no máximo, 50% do total de trabalhos
+              aprovados. Os 5 primeiros trabalhos da classificação final
+              são destinados à apresentação oral e os demais trabalhos
+              aprovados à apresentação em banner. Em caso de empate,
+              aplicam-se sucessivamente os critérios de Metodologia,
+              Resultados e Discussão, Introdução, Conclusão e Redação
+              Científica. Persistindo o empate, a decisão cabe à Comissão
+              Científica. Quando há terceiro avaliador, a nota final
+              corresponde à média das duas avaliações com notas mais
+              próximas entre si.
             </p>
           </div>
         </div>
