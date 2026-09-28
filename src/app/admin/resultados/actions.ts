@@ -18,13 +18,14 @@ type FinalResultStatus =
   | "not_selected";
 
 
-  type ClassificationPreviewRow = {
-    submission_id: string;
-    protocol: string | null;
-    current_status: string;
-    simulated_status: string;
-    needs_commission: boolean;
-  };
+type ClassificationPreviewRow = {
+  submission_id: string;
+  protocol: string | null;
+  current_status: string;
+  simulated_status: string;
+  needs_commission: boolean;
+};
+
 async function withTimeout<T>(
   action: () => Promise<T>,
   timeoutMessage: string,
@@ -48,6 +49,12 @@ async function withTimeout<T>(
       clearTimeout(timeoutId);
     }
   }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) =>
+    setTimeout(resolve, ms)
+  );
 }
 
 function redirectWithMessage(
@@ -667,6 +674,14 @@ export async function sendResultsAvailableEmails() {
         } else {
           failedCount += 1;
         }
+      }
+
+      const hasMoreBatches =
+        index + RESULTS_EMAIL_BATCH_SIZE <
+        submissions.length;
+
+      if (hasMoreBatches) {
+        await sleep(1200);
       }
     }
 
