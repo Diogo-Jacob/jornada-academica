@@ -71,6 +71,30 @@ const speakers = [
       },
     ],
   },
+  {
+    name: "Dra. Bruna Fernandes",
+    theme:
+      "Médica graduada pela Universidade Federal do Paraná (UFPR). Atualmente, é residente do terceiro ano de Cirurgia Geral no Hospital Municipal São José, em Joinville. Foi médica concursada do Serviço de Atendimento Móvel de Urgência (SAMU), coordenadora da Liga Acadêmica de Trauma e fundadora da Liga Acadêmica de Clínica Médica.",
+    image: "/palestrantes/bruna.jpeg",
+  },
+  {
+    name: "Dr. Andreas Monich Schulz ",
+    theme:
+      "Médico graduado pela Universidade da Região de Joinville (Univille). Atualmente, é residente de Neurologia no Hospital Municipal São José, em Joinville. Durante a graduação, integrou as Ligas Acadêmicas de Nefrologia e de Clínica Médica e atuou como coordenador da Liga Acadêmica de Patologia da Univille. Possui formação em Suporte Avançado de Vida Cardiovascular (ACLS) e realizou estágio de extensão em Traumatologia e Cirurgia no Hospital Municipal São José.",
+    image: "/palestrantes/andreas.jpeg",
+  },
+  {
+    name: "Dra. Larissa Helena Pereira",
+    theme:
+      "Médica graduada pela Universidade da Região de Joinville (Univille). Durante a graduação, participou da Liga Acadêmica de Ginecologia e Obstetrícia e atuou na IFMSA Brazil como Diretora Financeira Local e Coordenadora Regional Sul. Também foi bolsista de iniciação científica pelo CNPq, com pesquisa na área de diabetes mellitus gestacional. Atuou em serviços de pronto atendimento e como médica da Estratégia Saúde da Família, além de possuir formação em Suporte Avançado de Vida Cardiovascular (ACLS) e Suporte Avançado de Vida em Pediatria (PALS).",
+    image: "/palestrantes/larissa.jpeg",
+  },
+  {
+    name: "Dr. Bryan Pinnow",
+    theme:
+      "Médico graduado pela Universidade da Região de Joinville (Univille), integrante da Turma XXVII. Atualmente, é residente do primeiro ano de Ortopedia e Traumatologia no Hospital Municipal São José/IOT, em Joinville. Durante a graduação, foi presidente da Menarca em 2021 e integrou a Liga Acadêmica de Ortopedia e Traumatologia (LAOT), na qual também atuou como coordenador entre 2022 e 2024. Foi ainda membro da Liga Acadêmica de Trauma de Joinville (LATJ) entre 2022 e 2023.",
+    image: "/palestrantes/bryan.jpeg",
+  },
 ];
 const scheduleByDay = [
   {
@@ -103,7 +127,7 @@ const scheduleByDay = [
       {
         time: "14:30",
         duration: "35 min",
-        title: "APH",
+        title: "APH na Vida Real: Como Agir até o Socorro Chegar",
         description: "Palestra sobre Atendimento Pré-Hospitalar.",
         type: "Palestra",
       },
@@ -169,9 +193,9 @@ const scheduleByDay = [
       {
         time: "13:30",
         duration: "35 min",
-        title: "Palestra em breve",
+        title: "USMLE",
         description:
-          "Tema da primeira palestra do segundo dia será divulgado em breve.",
+          "Trajetória médica nos Estados Unidos",
         type: "Palestra",
       },
       {
@@ -336,19 +360,24 @@ const sponsors = [
     image: "/campgo-logo.png",
   },
   {
-    name: "UNIVILLE",
+    name: "Univille",
     role: "Apoiadora institucional",
     image: "/logo-univille.png",
+  },
+  {
+    name: "Lógica: Sistemas e Soluções Digitais",
+    role: "Apoiadora tecnológica",
+    image: "/logica.png",
+  },
+  {
+    name: "Medway",
+    role: "Apoiadora Educacional",
+    image: "/logo-medway.png",
   },
   {
     name: "Sociedade Joinvilense de Medicina",
     role: "Apoiadora científica",
     image: "/logo-sjm.png",
-  },
-  {
-    name: "Medway",
-    role: "Apoiadora",
-    image: "/logo-medway.png",
   },
   {
     name: "Helper Hub",
