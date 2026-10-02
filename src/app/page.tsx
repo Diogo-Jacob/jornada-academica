@@ -406,18 +406,43 @@ const sponsors = [
   },
   {
   name: "Hospital Dona Helena",
-  role: "Apoiadora",
+  role: "Patrocinador",
   image: "/logo-dona-helena.png",
   },
   {
   name: "ACM",
-  role: "Apoiadora",
+  role: "Patrocinador",
   image: "/logo-acm.png",
   },
   {
   name: "Square",
-  role: "Apoiadora",
+  role: "Patrocinador",
   image: "/logo-square.png",
+  },
+  {
+  name: "Broccato",
+  role: "Apoiador",
+  image: "/logo-broccato.png",
+  },
+  {
+  name: "Libertà",
+  role: "Apoiador",
+  image: "/logo-liberta.jpg",
+  },
+  {
+  name: "Moda Branca",
+  role: "Apoiador",
+  image: "/moda.png",
+  },
+  {
+  name: "Purpurata",
+  role: "Apoiador",
+  image: "/purpurata.jpg",
+  },
+  {
+  name: "Sabores da Vó Nena",
+  role: "Apoiador",
+  image: "/vo.png",
   }
 ];
 
